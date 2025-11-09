@@ -136,7 +136,13 @@ const CameraView = () => {
         streamRef.current = stream;
         
         // Wait for video to be ready
-        videoRef.current.onloadeddata = () => {
+        videoRef.current.onloadedmetadata = async () => {
+          try {
+            await videoRef.current!.play();
+          } catch (e) {
+            console.warn('Video play() was interrupted:', e);
+          }
+          lastFrameTimeRef.current = performance.now();
           setIsRecognizing(true);
           processFrame();
           

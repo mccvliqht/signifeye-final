@@ -4,6 +4,8 @@ import '@tensorflow/tfjs-backend-webgl';
 import { GestureEstimator } from 'fingerpose';
 import { aslGestures } from '@/lib/aslGestures';
 import { fslGestures } from '@/lib/fslGestures';
+import { aslPhrases } from '@/lib/aslPhrases';
+import { fslPhrases } from '@/lib/fslPhrases';
 
 export interface RecognitionResult {
   sign: string;
@@ -27,10 +29,10 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
         await tf.setBackend('webgl');
         await tf.ready();
 
-        // Select gestures based on language
-        const gestures = language === 'ASL' ? aslGestures : fslGestures;
+        // Select gestures based on language (alphabet + phrases)
+        const gestures = language === 'ASL' ? [...aslGestures, ...aslPhrases] : [...fslGestures, ...fslPhrases];
         
-        // Initialize GestureEstimator with pre-trained gestures
+        // Initialize GestureEstimator with pre-trained gesture templates
         const estimator = new GestureEstimator(gestures);
         
         console.log(`${language} gesture recognition initialized`);
