@@ -16,7 +16,7 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const lastPredictionRef = useRef<string>('');
-  const confidenceThreshold = 0.65;
+  const confidenceThreshold = 0.55; // Lowered threshold for better detection
 
   useEffect(() => {
     let isMounted = true;
@@ -57,11 +57,16 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
   }, [language]);
 
   const recognizeSign = async (landmarks: any[]): Promise<RecognitionResult | null> => {
-    if (!landmarks || landmarks.length === 0 || !gestureEstimator) return null;
+    if (!landmarks || landmarks.length === 0 || !gestureEstimator) {
+      console.log('No landmarks or estimator not ready');
+      return null;
+    }
 
     try {
       // Use the first hand for recognition
       const handLandmarks = landmarks[0];
+      
+      console.log('Processing landmarks, count:', handLandmarks.length);
       
       // Convert MediaPipe landmarks to fingerpose format
       // MediaPipe gives us landmarks as objects with x, y, z
@@ -72,10 +77,15 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
         landmark.z || 0
       ]);
 
-      // Estimate gestures using fingerpose
-      const estimations = await gestureEstimator.estimate(landmarkArray, 7.5);
+      console.log('Landmark array prepared, estimating gestures...');
+
+      // Estimate gestures using fingerpose with lower threshold
+      const estimations = await gestureEstimator.estimate(landmarkArray, 8.5);
+      
+      console.log('Estimations:', estimations);
       
       if (!estimations.gestures || estimations.gestures.length === 0) {
+        console.log('No gestures detected');
         return null;
       }
 
@@ -87,9 +97,13 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
       const confidence = bestGesture.score;
       const detectedSign = bestGesture.name;
 
+      console.log('Best gesture:', detectedSign, 'Confidence:', confidence);
+
       // Only return if confidence is above threshold and different from last prediction
       if (confidence >= confidenceThreshold && detectedSign !== lastPredictionRef.current) {
         lastPredictionRef.current = detectedSign;
+        
+        console.log('Sign detected:', detectedSign, 'Confidence:', confidence);
         
         // Add a small delay to prevent rapid repeated detections
         setTimeout(() => {
