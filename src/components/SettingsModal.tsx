@@ -5,6 +5,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -44,6 +45,9 @@ const SettingsModal = ({ open, onOpenChange }: SettingsModalProps) => {
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="text-2xl">Settings</DialogTitle>
+          <DialogDescription>
+            Configure language, output, theme, and font size.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 py-4">

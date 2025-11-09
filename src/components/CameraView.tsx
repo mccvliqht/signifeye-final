@@ -34,6 +34,11 @@ const CameraView = () => {
   const [fps, setFps] = useState(0);
   const lastFrameTimeRef = useRef<number>(0);
   const frameCountRef = useRef(0);
+  // Use a ref to avoid stale closure for the recognize loop
+  const recognizingRef = useRef(false);
+  useEffect(() => {
+    recognizingRef.current = isRecognizing;
+  }, [isRecognizing]);
 
   useEffect(() => {
     return () => {
@@ -56,7 +61,11 @@ const CameraView = () => {
   }, [outputText, resetSpeech, resetLastPrediction]);
 
   const processFrame = async () => {
-    if (!videoRef.current || !canvasRef.current || !isRecognizing) return;
+    if (!videoRef.current || !canvasRef.current || !recognizingRef.current) {
+      // Keep the loop alive until recognizing becomes true after state update
+      animationFrameRef.current = requestAnimationFrame(processFrame);
+      return;
+    }
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
