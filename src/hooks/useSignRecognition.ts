@@ -1,6 +1,9 @@
 import { useEffect, useState, useRef } from 'react';
 import * as tf from '@tensorflow/tfjs';
 import '@tensorflow/tfjs-backend-webgl';
+import { GestureEstimator } from 'fingerpose';
+import { aslGestures } from '@/lib/aslGestures';
+import { fslGestures } from '@/lib/fslGestures';
 
 export interface RecognitionResult {
   sign: string;
@@ -8,106 +11,93 @@ export interface RecognitionResult {
   timestamp: number;
 }
 
-// ASL Alphabet mapping (mock data for demonstration)
-const ASL_ALPHABET = [
-  'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
-  'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'
-];
-
-// FSL common phrases
-const FSL_PHRASES = [
-  'Hello', 'Thank you', 'Please', 'Sorry', 'Yes', 'No',
-  'Good morning', 'Good afternoon', 'Good evening', 'Goodbye',
-  'How are you?', 'I am fine', 'What is your name?', 'Nice to meet you'
-];
-
 export const useSignRecognition = (language: 'ASL' | 'FSL') => {
-  const [model, setModel] = useState<tf.LayersModel | null>(null);
+  const [gestureEstimator, setGestureEstimator] = useState<GestureEstimator | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const lastPredictionRef = useRef<string>('');
-  const confidenceThreshold = 0.7;
+  const confidenceThreshold = 0.65;
 
   useEffect(() => {
     let isMounted = true;
 
-    const initializeTensorFlow = async () => {
+    const initializeGestureRecognition = async () => {
       try {
         // Set WebGL backend for optimal performance
         await tf.setBackend('webgl');
         await tf.ready();
 
-        // For production, load your actual trained model
-        // For now, we'll create a simple mock model structure
-        // In production, replace this with:
-        // const loadedModel = await tf.loadLayersModel('path/to/your/model.json');
+        // Select gestures based on language
+        const gestures = language === 'ASL' ? aslGestures : fslGestures;
         
-        console.log('TensorFlow.js initialized with WebGL backend');
-        console.log(`Language set to: ${language}`);
+        // Initialize GestureEstimator with pre-trained gestures
+        const estimator = new GestureEstimator(gestures);
+        
+        console.log(`${language} gesture recognition initialized`);
+        console.log(`Loaded ${gestures.length} ${language} gestures`);
 
         if (isMounted) {
-          // In production, set the actual loaded model here
-          setModel(null); // We'll use rule-based recognition for demo
+          setGestureEstimator(estimator);
           setIsLoading(false);
         }
       } catch (err) {
-        console.error('Error initializing TensorFlow:', err);
+        console.error('Error initializing gesture recognition:', err);
         if (isMounted) {
-          setError('Failed to initialize recognition model');
+          setError('Failed to initialize gesture recognition');
           setIsLoading(false);
         }
       }
     };
 
-    initializeTensorFlow();
+    initializeGestureRecognition();
 
     return () => {
       isMounted = false;
     };
   }, [language]);
 
-  const preprocessLandmarks = (landmarks: any[]): number[] => {
-    // Flatten and normalize landmark coordinates
-    const flattened: number[] = [];
-    
-    if (!landmarks || landmarks.length === 0) return [];
-
-    landmarks.forEach((hand: any) => {
-      hand.forEach((landmark: any) => {
-        flattened.push(landmark.x, landmark.y, landmark.z);
-      });
-    });
-
-    return flattened;
-  };
-
   const recognizeSign = async (landmarks: any[]): Promise<RecognitionResult | null> => {
-    if (!landmarks || landmarks.length === 0) return null;
+    if (!landmarks || landmarks.length === 0 || !gestureEstimator) return null;
 
     try {
-      // Preprocess landmarks
-      const features = preprocessLandmarks(landmarks);
+      // Use the first hand for recognition
+      const handLandmarks = landmarks[0];
       
-      if (features.length === 0) return null;
+      // Convert MediaPipe landmarks to fingerpose format
+      // MediaPipe gives us landmarks as objects with x, y, z
+      // Fingerpose expects array of [x, y, z] arrays
+      const landmarkArray = handLandmarks.map((landmark: any) => [
+        landmark.x,
+        landmark.y,
+        landmark.z || 0
+      ]);
 
-      // Demo: Simple rule-based recognition
-      // In production, use: const predictions = model.predict(tf.tensor2d([features]));
+      // Estimate gestures using fingerpose
+      const estimations = await gestureEstimator.estimate(landmarkArray, 7.5);
       
-      // For demo purposes, we'll simulate recognition with random results
-      const vocabulary = language === 'ASL' ? ASL_ALPHABET : FSL_PHRASES;
-      const randomIndex = Math.floor(Math.random() * vocabulary.length);
-      const confidence = 0.75 + Math.random() * 0.2; // 0.75 to 0.95
-
-      // Simulate occasional low confidence (no detection)
-      if (Math.random() < 0.3) {
+      if (!estimations.gestures || estimations.gestures.length === 0) {
         return null;
       }
 
-      const detectedSign = vocabulary[randomIndex];
+      // Get the best match
+      const bestGesture = estimations.gestures.reduce((prev: any, current: any) => 
+        (current.score > prev.score) ? current : prev
+      );
+
+      const confidence = bestGesture.score;
+      const detectedSign = bestGesture.name;
 
       // Only return if confidence is above threshold and different from last prediction
       if (confidence >= confidenceThreshold && detectedSign !== lastPredictionRef.current) {
         lastPredictionRef.current = detectedSign;
+        
+        // Add a small delay to prevent rapid repeated detections
+        setTimeout(() => {
+          if (lastPredictionRef.current === detectedSign) {
+            lastPredictionRef.current = '';
+          }
+        }, 1500);
+        
         return {
           sign: detectedSign,
           confidence,
@@ -127,7 +117,7 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
   };
 
   return {
-    model,
+    gestureEstimator,
     isLoading,
     error,
     recognizeSign,
