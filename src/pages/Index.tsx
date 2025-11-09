@@ -1,13 +1,31 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState } from 'react';
+import TopBar from '@/components/TopBar';
+import CameraView from '@/components/CameraView';
+import OutputPanel from '@/components/OutputPanel';
+import SettingsModal from '@/components/SettingsModal';
+import { AppProvider } from '@/contexts/AppContext';
 
 const Index = () => {
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
+    <AppProvider>
+      <div className="h-screen flex flex-col overflow-hidden">
+        <TopBar onSettingsClick={() => setSettingsOpen(true)} />
+        
+        <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 overflow-hidden">
+          <div className="lg:col-span-2 overflow-auto">
+            <CameraView />
+          </div>
+          
+          <div className="overflow-auto">
+            <OutputPanel />
+          </div>
+        </div>
+
+        <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
       </div>
-    </div>
+    </AppProvider>
   );
 };
 
