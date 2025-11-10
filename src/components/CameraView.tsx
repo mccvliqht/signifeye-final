@@ -36,9 +36,23 @@ const CameraView = () => {
   const frameCountRef = useRef(0);
   // Use a ref to avoid stale closure for the recognize loop
   const recognizingRef = useRef(false);
+  // Buffer recent predictions for temporal smoothing
+  const predictionsBufferRef = useRef<{ sign: string; confidence: number; t: number }[]>([]);
+  const lastEmittedRef = useRef<string>('');
+  // Offscreen canvas for auto-exposure (brightness) adjustments
+  const exposureCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const exposureFrameRef = useRef(0);
+
   useEffect(() => {
     recognizingRef.current = isRecognizing;
   }, [isRecognizing]);
+
+  useEffect(() => {
+    exposureCanvasRef.current = document.createElement('canvas');
+    return () => {
+      exposureCanvasRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -184,6 +198,8 @@ const CameraView = () => {
 
     if (videoRef.current) {
       videoRef.current.srcObject = null;
+      // reset visual filters
+      try { videoRef.current.style.filter = ''; } catch {}
     }
 
     if (canvasRef.current) {
@@ -191,6 +207,7 @@ const CameraView = () => {
       if (ctx) {
         ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
       }
+      try { canvasRef.current.style.filter = ''; } catch {}
     }
 
     setIsRecognizing(false);

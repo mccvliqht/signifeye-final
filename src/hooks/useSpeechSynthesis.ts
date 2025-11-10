@@ -8,24 +8,47 @@ export const useSpeechSynthesis = () => {
 
   useEffect(() => {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      const synth = window.speechSynthesis;
+      synthRef.current = synth;
       setIsSupported(true);
-      synthRef.current = window.speechSynthesis;
+      // Preload voices; some browsers require touching getVoices()
+      const loadVoices = () => {
+        synth.getVoices();
+      };
+      if (typeof synth.onvoiceschanged !== 'undefined') {
+        synth.onvoiceschanged = loadVoices;
+      }
+      loadVoices();
     }
   }, []);
 
-  const speak = (text: string) => {
+  const speak = (text: string, opts?: { lang?: string; voice?: string }) => {
     if (!isSupported || !synthRef.current || !text) return;
 
     // Only speak if the text is different from what was last spoken
     if (text === lastSpokenTextRef.current) return;
 
+    const synth = synthRef.current;
+
+    // Try to resume if paused (iOS/Safari quirks)
+    try {
+      if (synth.paused) synth.resume();
+    } catch {}
+
     // Cancel any ongoing speech
-    synthRef.current.cancel();
+    synth.cancel();
 
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.9;
+    utterance.rate = 0.95;
     utterance.pitch = 1;
     utterance.volume = 1;
+
+    if (opts?.lang) utterance.lang = opts.lang;
+
+    if (opts?.voice) {
+      const v = synth.getVoices().find((vv) => vv.name === opts.voice || vv.lang === opts.voice);
+      if (v) utterance.voice = v;
+    }
 
     utterance.onstart = () => {
       setIsSpeaking(true);
@@ -41,7 +64,7 @@ export const useSpeechSynthesis = () => {
       setIsSpeaking(false);
     };
 
-    synthRef.current.speak(utterance);
+    synth.speak(utterance);
   };
 
   const cancel = () => {
