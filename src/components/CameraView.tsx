@@ -7,6 +7,7 @@ import { useMediaPipe } from '@/hooks/useMediaPipe';
 import { useSignRecognition, RecognitionResult } from '@/hooks/useSignRecognition';
 import { useSpeechSynthesis } from '@/hooks/useSpeechSynthesis';
 import { Badge } from '@/components/ui/badge';
+import { fslToFilipino } from '@/lib/fslTranslations';
 
 const CameraView = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -74,11 +75,112 @@ const CameraView = () => {
     }
   }, [outputText, resetSpeech, resetLastPrediction]);
 
+  // Apply auto-exposure adjustment every 10 frames
+  const adjustExposure = (video: HTMLVideoElement) => {
+    exposureFrameRef.current++;
+    if (exposureFrameRef.current % 10 !== 0 || !exposureCanvasRef.current) return;
+
+    const canvas = exposureCanvasRef.current;
+    canvas.width = 160;
+    canvas.height = 120;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return;
+
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imageData.data;
+    
+    let totalBrightness = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+      totalBrightness += avg;
+    }
+    const avgBrightness = totalBrightness / (data.length / 4);
+    
+    // Target brightness is 128 (mid-gray)
+    const targetBrightness = 128;
+    const diff = targetBrightness - avgBrightness;
+    
+    if (Math.abs(diff) > 20) {
+      const adjustment = diff / targetBrightness;
+      const brightness = 1 + (adjustment * 0.3);
+      const contrast = 1 + (adjustment * 0.1);
+      video.style.filter = `brightness(${brightness}) contrast(${contrast})`;
+      if (canvasRef.current) {
+        canvasRef.current.style.filter = `brightness(${brightness}) contrast(${contrast})`;
+      }
+    }
+  };
+
+  const handleRecognition = async (recognition: RecognitionResult) => {
+    const now = Date.now();
+    const { sign, confidence } = recognition;
+    
+    // Add to buffer
+    predictionsBufferRef.current.push({ sign, confidence, t: now });
+    
+    // Keep only last 1 second of predictions
+    predictionsBufferRef.current = predictionsBufferRef.current.filter(p => now - p.t < 1000);
+    
+    // Temporal smoothing: check if same sign appears multiple times recently
+    const recentSigns = predictionsBufferRef.current.filter(p => p.sign === sign);
+    const minCount = 3;
+    const minAvgConfidence = 9.2;
+    
+    if (recentSigns.length >= minCount) {
+      const avgConfidence = recentSigns.reduce((sum, p) => sum + p.confidence, 0) / recentSigns.length;
+      
+      // Check against other candidates
+      const otherSigns = new Map<string, number>();
+      for (const p of predictionsBufferRef.current) {
+        if (p.sign !== sign) {
+          otherSigns.set(p.sign, (otherSigns.get(p.sign) || 0) + 1);
+        }
+      }
+      const maxOther = Math.max(0, ...Array.from(otherSigns.values()));
+      const margin = recentSigns.length - maxOther;
+      const minMargin = 2;
+      
+      if (avgConfidence >= minAvgConfidence && margin >= minMargin && sign !== lastEmittedRef.current) {
+        lastEmittedRef.current = sign;
+        
+        // Translate if FSL
+        const displaySign = settings.language === 'FSL' ? (fslToFilipino[sign] || sign) : sign;
+        
+        // Append to output (not replace)
+        const newText = outputText ? `${outputText} ${displaySign}` : displaySign;
+        setOutputText(newText);
+        setCurrentConfidence(avgConfidence);
+        
+        // Speak with appropriate language
+        if (settings.outputMode === 'speech' && speechSupported) {
+          const lang = settings.language === 'FSL' ? 'fil-PH' : 'en-US';
+          speak(displaySign, { lang });
+        }
+        
+        // Clear buffer after emission
+        predictionsBufferRef.current = [];
+        
+        // Reset after delay
+        setTimeout(() => {
+          if (lastEmittedRef.current === sign) {
+            lastEmittedRef.current = '';
+          }
+        }, 1500);
+      }
+    }
+  };
+
   const processFrame = async () => {
-    if (!videoRef.current || !canvasRef.current || !recognizingRef.current) {
-      // Keep the loop alive until recognizing becomes true after state update
-      animationFrameRef.current = requestAnimationFrame(processFrame);
+    if (!videoRef.current || !canvasRef.current) {
+      if (recognizingRef.current) {
+        animationFrameRef.current = requestAnimationFrame(processFrame);
+      }
       return;
+    }
+
+    if (!recognizingRef.current) {
+      return; // Stop processing
     }
 
     const video = videoRef.current;
@@ -91,6 +193,10 @@ const CameraView = () => {
     }
 
     const now = performance.now();
+    
+    // Auto-adjust exposure
+    adjustExposure(video);
+    
     const results = detectHands(video, now);
 
     // Draw landmarks overlay
@@ -102,16 +208,7 @@ const CameraView = () => {
         const recognition: RecognitionResult | null = await recognizeSign(results.landmarks);
         
         if (recognition) {
-          setCurrentConfidence(recognition.confidence);
-          
-          // Update output text with new sign
-          const newText = outputText ? `${outputText} ${recognition.sign}` : recognition.sign;
-          setOutputText(newText);
-
-          // Speak only the new sign if speech mode is enabled
-          if (settings.outputMode === 'speech' && speechSupported) {
-            speak(recognition.sign);
-          }
+          await handleRecognition(recognition);
         }
       }
     }
