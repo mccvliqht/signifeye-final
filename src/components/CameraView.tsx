@@ -127,8 +127,8 @@ const CameraView = () => {
     
     // Temporal smoothing: check if same sign appears multiple times recently
     const recentSigns = predictionsBufferRef.current.filter(p => p.sign === sign);
-    const minCount = 2;
-    const minAvgConfidence = 8.2;
+    const minCount = 1;
+    const minAvgConfidence = 6.5;
     
     if (recentSigns.length >= minCount) {
       const avgConfidence = recentSigns.reduce((sum, p) => sum + p.confidence, 0) / recentSigns.length;
@@ -211,6 +211,12 @@ const CameraView = () => {
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
+
+    // Ensure video has valid dimensions before processing to avoid MediaPipe ROI errors
+    if (video.videoWidth === 0 || video.videoHeight === 0) {
+      animationFrameRef.current = requestAnimationFrame(processFrame);
+      return;
+    }
 
     // Match canvas size to video
     if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {

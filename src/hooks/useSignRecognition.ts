@@ -18,7 +18,7 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const lastPredictionRef = useRef<string>('');
-  const confidenceThreshold = 8.2; // Slightly relaxed to improve recall while avoiding false positives
+  const confidenceThreshold = 6.5; // Relaxed to allow more detections while avoiding false positives
 
   useEffect(() => {
     let isMounted = true;
@@ -89,7 +89,7 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
       console.log('Landmark array prepared, estimating gestures...');
 
       // Estimate gestures using fingerpose with lower threshold
-      const estimations = await gestureEstimator.estimate(landmarkArray, 8.0);
+      const estimations = await gestureEstimator.estimate(landmarkArray, 6.0);
       
       console.log('Estimations:', estimations);
       
