@@ -59,4 +59,30 @@ export const fslToFilipino: Record<string, string> = {
   'School': 'Paaralan',
   'Teacher': 'Guro',
   'Student': 'Estudyante',
+
+  // Numbers
+  'Zero': 'Zero',
+  'One': 'Isa',
+  'Two': 'Dalawa',
+  'Three': 'Tatlo',
+  'Four': 'Apat',
+  'Five': 'Lima',
+  'Six': 'Anim',
+  'Seven': 'Pito',
+  'Eight': 'Walo',
+  'Nine': 'Siyam',
+  'Ten': 'Sampu',
+
+  // Questions
+  'Who': 'Sino',
+  'When': 'Kailan',
+  'Why': 'Bakit',
+  'How': 'Paano',
+
+  // Time
+  'Today': 'Ngayon',
+  'Tomorrow': 'Bukas',
+  'Yesterday': 'Kahapon',
+  'Morning': 'Umaga',
+  'Night': 'Gabi',
 };

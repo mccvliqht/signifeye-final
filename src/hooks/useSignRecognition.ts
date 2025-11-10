@@ -18,7 +18,7 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const lastPredictionRef = useRef<string>('');
-  const confidenceThreshold = 9.0; // Fingerpose scores are 0-10; keep high to reduce false positives
+  const confidenceThreshold = 8.2; // Slightly relaxed to improve recall while avoiding false positives
 
   useEffect(() => {
     let isMounted = true;
@@ -28,6 +28,13 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
         // Set WebGL backend for optimal performance
         await tf.setBackend('webgl');
         await tf.ready();
+
+        // Warm up TFJS backend to avoid first-frame jank
+        tf.tidy(() => {
+          const x = tf.tensor([0, 1, 2, 3]);
+          const y = x.square();
+          y.dataSync();
+        });
 
         // Select gestures based on language (alphabet + phrases)
         const gestures = language === 'ASL' ? [...aslGestures, ...aslPhrases] : [...fslGestures, ...fslPhrases];
@@ -82,7 +89,7 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
       console.log('Landmark array prepared, estimating gestures...');
 
       // Estimate gestures using fingerpose with lower threshold
-      const estimations = await gestureEstimator.estimate(landmarkArray, 9.0);
+      const estimations = await gestureEstimator.estimate(landmarkArray, 8.0);
       
       console.log('Estimations:', estimations);
       

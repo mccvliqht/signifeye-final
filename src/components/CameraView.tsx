@@ -8,7 +8,7 @@ import { useSignRecognition, RecognitionResult } from '@/hooks/useSignRecognitio
 import { useSpeechSynthesis } from '@/hooks/useSpeechSynthesis';
 import { Badge } from '@/components/ui/badge';
 import { fslToFilipino } from '@/lib/fslTranslations';
-
+import { supabase } from '@/integrations/supabase/client';
 const CameraView = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -43,6 +43,9 @@ const CameraView = () => {
   // Offscreen canvas for auto-exposure (brightness) adjustments
   const exposureCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const exposureFrameRef = useRef(0);
+  const noDetectFramesRef = useRef(0);
+  const lastAiCallAtRef = useRef(0);
+  const aiBusyRef = useRef(false);
 
   useEffect(() => {
     recognizingRef.current = isRecognizing;
@@ -124,8 +127,8 @@ const CameraView = () => {
     
     // Temporal smoothing: check if same sign appears multiple times recently
     const recentSigns = predictionsBufferRef.current.filter(p => p.sign === sign);
-    const minCount = 3;
-    const minAvgConfidence = 9.2;
+    const minCount = 2;
+    const minAvgConfidence = 8.2;
     
     if (recentSigns.length >= minCount) {
       const avgConfidence = recentSigns.reduce((sum, p) => sum + p.confidence, 0) / recentSigns.length;
@@ -139,7 +142,7 @@ const CameraView = () => {
       }
       const maxOther = Math.max(0, ...Array.from(otherSigns.values()));
       const margin = recentSigns.length - maxOther;
-      const minMargin = 2;
+      const minMargin = 1;
       
       if (avgConfidence >= minAvgConfidence && margin >= minMargin && sign !== lastEmittedRef.current) {
         lastEmittedRef.current = sign;
@@ -150,7 +153,7 @@ const CameraView = () => {
         // Append to output (not replace)
         const newText = outputText ? `${outputText} ${displaySign}` : displaySign;
         setOutputText(newText);
-        setCurrentConfidence(avgConfidence);
+        setCurrentConfidence(avgConfidence / 10);
         
         // Speak with appropriate language
         if (settings.outputMode === 'speech' && speechSupported) {
@@ -169,6 +172,29 @@ const CameraView = () => {
         }, 1500);
       }
     }
+  };
+
+  // Heavier AI pipeline fallback: append AI-detected sign immediately
+  const handleAiSign = (aiSign: string) => {
+    if (!aiSign) return;
+    // Avoid immediate duplicates
+    if (aiSign === lastEmittedRef.current) return;
+    lastEmittedRef.current = aiSign;
+
+    const displaySign = settings.language === 'FSL' ? (fslToFilipino[aiSign] || aiSign) : aiSign;
+    const newText = outputText ? `${outputText} ${displaySign}` : displaySign;
+    setOutputText(newText);
+    setCurrentConfidence(0.95);
+
+    if (settings.outputMode === 'speech' && speechSupported) {
+      const lang = settings.language === 'FSL' ? 'fil-PH' : 'en-US';
+      speak(displaySign, { lang });
+    }
+
+    // reset lastEmitted after a brief delay
+    setTimeout(() => {
+      if (lastEmittedRef.current === aiSign) lastEmittedRef.current = '';
+    }, 1500);
   };
 
   const processFrame = async () => {
@@ -209,6 +235,38 @@ const CameraView = () => {
         
         if (recognition) {
           await handleRecognition(recognition);
+          noDetectFramesRef.current = 0;
+        } else {
+          noDetectFramesRef.current++;
+          const nowTs = Date.now();
+          if (
+            noDetectFramesRef.current >= 12 &&
+            !aiBusyRef.current &&
+            nowTs - lastAiCallAtRef.current > 800
+          ) {
+            aiBusyRef.current = true;
+            lastAiCallAtRef.current = nowTs;
+            try {
+              const { data, error } = await supabase.functions.invoke('classify-sign', {
+                body: {
+                  landmarks: results.landmarks,
+                  language: settings.language,
+                  recentPredictions: predictionsBufferRef.current.slice(-5).map((p) => p.sign),
+                },
+              });
+              if (error) {
+                console.error('AI classify error:', error);
+              }
+              if (data && data.sign) {
+                handleAiSign(data.sign);
+                noDetectFramesRef.current = 0;
+              }
+            } catch (e) {
+              console.error('AI classify exception:', e);
+            } finally {
+              aiBusyRef.current = false;
+            }
+          }
         }
       }
     }

@@ -23,21 +23,23 @@ serve(async (req) => {
     }
 
     // Prepare context for the AI
-    const systemPrompt = `You are an expert in ${language === 'ASL' ? 'American' : 'Filipino'} Sign Language recognition. 
+    const systemPrompt = `You are an expert in ${language === 'ASL' ? 'American' : 'Filipino'} Sign Language recognition.
 Given hand landmark data (21 points per hand with x, y, z coordinates), analyze the hand shape and identify the most likely sign.
 
-Consider:
-- Finger curl patterns (which fingers are bent or straight)
-- Finger directions and orientations
-- Thumb position relative to other fingers
-- Overall hand shape
+Rules:
+- Be conservative: only return a sign name when you are at least 95% certain, otherwise return "uncertain".
+- Consider finger curl patterns, directions, thumb position, and overall hand shape.
+- If language is FSL, respond with the Tagalog (Filipino) word for the sign whenever applicable (e.g., Yes → "Oo", Thank you → "Salamat").
 
-Common ${language} signs to recognize:
-Alphabet: A-Z
-Common words: Hello, Thank you, Yes, No, Please, Sorry, Help, Goodbye, I love you
-Additional words: Stop, Water, Bathroom, Eat, Drink, Internet, Computer, Phone, Book, Home, School, Teacher, Student
+Target vocabulary to recognize accurately:
+- Alphabet: A–Z
+- Numbers: 0–10
+- Common words: Hello, Thank you, Yes, No, Please, Sorry, Help, Goodbye, I love you
+- Daily needs: Stop, Water, Bathroom, Eat, Drink, Internet, Computer, Phone, Book, Home, School, Teacher, Student
+- Questions: What, Where, Who, When, Why, How
+- Time: Today, Tomorrow, Yesterday, Morning, Night
 
-Respond with ONLY the sign name that best matches the hand shape. Be very confident - only respond if you're at least 95% certain.`;
+Respond with ONLY the sign name (single short phrase).`;
 
     const userPrompt = `Analyze these hand landmarks and identify the ${language} sign:
 Landmarks: ${JSON.stringify(landmarks[0].slice(0, 21))}
