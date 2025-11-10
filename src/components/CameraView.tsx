@@ -322,6 +322,8 @@ const CameraView = () => {
           }
           lastFrameTimeRef.current = performance.now();
           setIsRecognizing(true);
+          // Ensure the processing loop sees the updated flag immediately
+          recognizingRef.current = true;
           processFrame();
           
           toast({
@@ -365,6 +367,7 @@ const CameraView = () => {
       try { canvasRef.current.style.filter = ''; } catch {}
     }
 
+    recognizingRef.current = false;
     setIsRecognizing(false);
     setCurrentConfidence(null);
     setFps(0);
