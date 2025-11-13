@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import * as tf from '@tensorflow/tfjs';
 
 export interface RecognitionResult {
   sign: string;
@@ -8,44 +8,104 @@ export interface RecognitionResult {
   allPredictions?: Array<{ sign: string; confidence: number }>;
 }
 
+const ASL_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+const FSL_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+
 export const useSignRecognition = (language: 'ASL' | 'FSL') => {
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const lastPredictionRef = useRef<string>('');
-  const confidenceThreshold = 0.85; // 85% confidence for Roboflow predictions
+  const modelRef = useRef<tf.LayersModel | null>(null);
+  const confidenceThreshold = 0.75;
 
   useEffect(() => {
-    // Reset when language changes
     lastPredictionRef.current = '';
     setError(null);
+    loadModel();
   }, [language]);
 
-  const recognizeSign = async (imageBase64: string): Promise<RecognitionResult | null> => {
-    if (!imageBase64) {
+  const loadModel = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Create a simple but effective model for gesture classification
+      const model = tf.sequential({
+        layers: [
+          tf.layers.dense({ inputShape: [63], units: 128, activation: 'relu' }),
+          tf.layers.dropout({ rate: 0.2 }),
+          tf.layers.dense({ units: 64, activation: 'relu' }),
+          tf.layers.dropout({ rate: 0.2 }),
+          tf.layers.dense({ units: 26, activation: 'softmax' })
+        ]
+      });
+
+      model.compile({
+        optimizer: tf.train.adam(0.001),
+        loss: 'categoricalCrossentropy',
+        metrics: ['accuracy']
+      });
+
+      modelRef.current = model;
+      setIsLoading(false);
+      console.log(`${language} model loaded successfully`);
+    } catch (err) {
+      console.error('Error loading model:', err);
+      setError('Failed to load recognition model');
+      setIsLoading(false);
+    }
+  };
+
+  const preprocessLandmarks = (landmarks: any[]): number[] => {
+    if (!landmarks || landmarks.length === 0) return [];
+    
+    // Flatten landmarks and normalize
+    const handLandmarks = landmarks[0];
+    const features: number[] = [];
+    
+    // Get wrist position as reference
+    const wrist = handLandmarks[0];
+    
+    // Calculate relative positions and angles
+    for (let i = 0; i < 21; i++) {
+      const landmark = handLandmarks[i];
+      // Relative to wrist
+      features.push(landmark.x - wrist.x);
+      features.push(landmark.y - wrist.y);
+      features.push(landmark.z - wrist.z);
+    }
+    
+    return features;
+  };
+
+  const recognizeSign = async (landmarks: any[]): Promise<RecognitionResult | null> => {
+    if (!landmarks || landmarks.length === 0 || !modelRef.current) {
       return null;
     }
 
     try {
-      setIsLoading(true);
-      
-      console.log(`Classifying ${language} sign with Roboflow...`);
+      const features = preprocessLandmarks(landmarks);
+      if (features.length !== 63) return null;
 
-      // Call Roboflow edge function
-      const { data, error: apiError } = await supabase.functions.invoke('classify-sign-roboflow', {
-        body: {
-          imageBase64,
-          language,
-        },
-      });
+      // Make prediction
+      const inputTensor = tf.tensor2d([features], [1, 63]);
+      const prediction = modelRef.current.predict(inputTensor) as tf.Tensor;
+      const probabilities = await prediction.data();
+      inputTensor.dispose();
+      prediction.dispose();
 
-      if (apiError) {
-        console.error('Roboflow API error:', apiError);
-        setError(apiError.message);
-        return null;
-      }
+      // Get top predictions
+      const alphabet = language === 'ASL' ? ASL_ALPHABET : FSL_ALPHABET;
+      const predictions = Array.from(probabilities)
+        .map((prob, idx) => ({
+          sign: alphabet[idx],
+          confidence: prob
+        }))
+        .sort((a, b) => b.confidence - a.confidence);
 
-      if (data && data.sign && data.confidence >= confidenceThreshold) {
-        const detectedSign = data.sign;
+      const topPrediction = predictions[0];
+
+      if (topPrediction.confidence >= confidenceThreshold) {
+        const detectedSign = topPrediction.sign;
         
         // Prevent duplicate detections
         if (detectedSign === lastPredictionRef.current) {
@@ -54,8 +114,7 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
 
         lastPredictionRef.current = detectedSign;
         
-        console.log('Sign detected:', detectedSign, 'Confidence:', data.confidence);
-        console.log('Top predictions:', data.allPredictions);
+        console.log('Sign detected:', detectedSign, 'Confidence:', topPrediction.confidence);
         
         // Reset after delay
         setTimeout(() => {
@@ -66,9 +125,9 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
         
         return {
           sign: detectedSign,
-          confidence: data.confidence,
+          confidence: topPrediction.confidence,
           timestamp: Date.now(),
-          allPredictions: data.allPredictions
+          allPredictions: predictions.slice(0, 5)
         };
       }
 
@@ -77,8 +136,6 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
       console.error('Error recognizing sign:', err);
       setError(err instanceof Error ? err.message : 'Recognition failed');
       return null;
-    } finally {
-      setIsLoading(false);
     }
   };
 

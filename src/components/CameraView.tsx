@@ -165,23 +165,6 @@ const CameraView = () => {
     }
   };
 
-  // Capture frame as base64 for Roboflow
-  const captureFrame = (video: HTMLVideoElement): string | null => {
-    try {
-      const canvas = document.createElement('canvas');
-      canvas.width = 640; // Resize for API efficiency
-      canvas.height = 480;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return null;
-      
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      return canvas.toDataURL('image/jpeg', 0.8);
-    } catch (err) {
-      console.error('Error capturing frame:', err);
-      return null;
-    }
-  };
-
   const processFrame = async () => {
     if (!videoRef.current || !canvasRef.current) {
       if (recognizingRef.current) {
@@ -220,31 +203,24 @@ const CameraView = () => {
     if (results) {
       drawLandmarks(canvas, results);
 
-      // Classify sign every 300ms if hand detected
+      // Classify sign every 150ms if hand detected (5-7 per second)
       if (results.landmarks && results.landmarks.length > 0) {
         const nowTs = Date.now();
         
-        // Throttle API calls to 2-3 per second
-        if (!classifyBusyRef.current && nowTs - lastClassifyAtRef.current > 300) {
+        if (!classifyBusyRef.current && nowTs - lastClassifyAtRef.current > 150) {
           classifyBusyRef.current = true;
           lastClassifyAtRef.current = nowTs;
           
-          // Capture frame for Roboflow
-          const imageBase64 = captureFrame(video);
-          
-          if (imageBase64) {
-            try {
-              const recognition = await recognizeSign(imageBase64);
-              
-              if (recognition) {
-                await handleRecognition(recognition);
-              }
-            } catch (e) {
-              console.error('Classification exception:', e);
-            } finally {
-              classifyBusyRef.current = false;
+          try {
+            // Use MediaPipe landmarks directly with TensorFlow.js
+            const recognition = await recognizeSign(results.landmarks);
+            
+            if (recognition) {
+              await handleRecognition(recognition);
             }
-          } else {
+          } catch (e) {
+            console.error('Classification exception:', e);
+          } finally {
             classifyBusyRef.current = false;
           }
         }

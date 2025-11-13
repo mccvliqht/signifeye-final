@@ -210,89 +210,11 @@ fslZ.addCurl(Finger.Middle, FingerCurl.FullCurl, 1.0);
 fslZ.addCurl(Finger.Ring, FingerCurl.FullCurl, 1.0);
 fslZ.addCurl(Finger.Pinky, FingerCurl.FullCurl, 1.0);
 
-// Common FSL phrases
-export const fslHello = new GestureDescription('Hello');
-fslHello.addCurl(Finger.Thumb, FingerCurl.NoCurl, 1.0);
-fslHello.addCurl(Finger.Index, FingerCurl.NoCurl, 1.0);
-fslHello.addCurl(Finger.Middle, FingerCurl.NoCurl, 1.0);
-fslHello.addCurl(Finger.Ring, FingerCurl.NoCurl, 1.0);
-fslHello.addCurl(Finger.Pinky, FingerCurl.NoCurl, 1.0);
-
-export const fslThankYou = new GestureDescription('Thank you');
-fslThankYou.addCurl(Finger.Thumb, FingerCurl.NoCurl, 1.0);
-fslThankYou.addCurl(Finger.Index, FingerCurl.NoCurl, 1.0);
-fslThankYou.addCurl(Finger.Middle, FingerCurl.NoCurl, 1.0);
-fslThankYou.addCurl(Finger.Ring, FingerCurl.NoCurl, 1.0);
-fslThankYou.addCurl(Finger.Pinky, FingerCurl.NoCurl, 1.0);
-
-export const fslYes = new GestureDescription('Yes');
-fslYes.addCurl(Finger.Thumb, FingerCurl.NoCurl, 1.0);
-fslYes.addCurl(Finger.Index, FingerCurl.FullCurl, 1.0);
-fslYes.addCurl(Finger.Middle, FingerCurl.FullCurl, 1.0);
-fslYes.addCurl(Finger.Ring, FingerCurl.FullCurl, 1.0);
-fslYes.addCurl(Finger.Pinky, FingerCurl.FullCurl, 1.0);
-
-export const fslNo = new GestureDescription('No');
-fslNo.addCurl(Finger.Index, FingerCurl.NoCurl, 1.0);
-fslNo.addCurl(Finger.Middle, FingerCurl.NoCurl, 1.0);
-fslNo.addCurl(Finger.Ring, FingerCurl.FullCurl, 1.0);
-fslNo.addCurl(Finger.Pinky, FingerCurl.FullCurl, 1.0);
-
-// Additional FSL common phrases
-export const fslPlease = new GestureDescription('Please');
-fslPlease.addCurl(Finger.Thumb, FingerCurl.NoCurl, 1.0);
-fslPlease.addCurl(Finger.Index, FingerCurl.NoCurl, 1.0);
-fslPlease.addCurl(Finger.Middle, FingerCurl.NoCurl, 1.0);
-fslPlease.addCurl(Finger.Ring, FingerCurl.NoCurl, 1.0);
-fslPlease.addCurl(Finger.Pinky, FingerCurl.NoCurl, 1.0);
-
-export const fslSorry = new GestureDescription('Sorry');
-fslSorry.addCurl(Finger.Thumb, FingerCurl.HalfCurl, 1.0);
-fslSorry.addCurl(Finger.Index, FingerCurl.FullCurl, 1.0);
-fslSorry.addCurl(Finger.Middle, FingerCurl.FullCurl, 1.0);
-fslSorry.addCurl(Finger.Ring, FingerCurl.FullCurl, 1.0);
-fslSorry.addCurl(Finger.Pinky, FingerCurl.FullCurl, 1.0);
-
-export const fslHelp = new GestureDescription('Help');
-fslHelp.addCurl(Finger.Thumb, FingerCurl.NoCurl, 1.0);
-fslHelp.addCurl(Finger.Index, FingerCurl.FullCurl, 1.0);
-fslHelp.addCurl(Finger.Middle, FingerCurl.FullCurl, 1.0);
-fslHelp.addCurl(Finger.Ring, FingerCurl.FullCurl, 1.0);
-fslHelp.addCurl(Finger.Pinky, FingerCurl.FullCurl, 1.0);
-
-export const fslGoodbye = new GestureDescription('Goodbye');
-fslGoodbye.addCurl(Finger.Thumb, FingerCurl.NoCurl, 1.0);
-fslGoodbye.addCurl(Finger.Index, FingerCurl.NoCurl, 1.0);
-fslGoodbye.addCurl(Finger.Middle, FingerCurl.NoCurl, 1.0);
-fslGoodbye.addCurl(Finger.Ring, FingerCurl.NoCurl, 1.0);
-fslGoodbye.addCurl(Finger.Pinky, FingerCurl.NoCurl, 1.0);
-
-export const fslILoveYou = new GestureDescription('I love you');
-fslILoveYou.addCurl(Finger.Thumb, FingerCurl.NoCurl, 1.0);
-fslILoveYou.addCurl(Finger.Index, FingerCurl.NoCurl, 1.0);
-fslILoveYou.addCurl(Finger.Middle, FingerCurl.FullCurl, 1.0);
-fslILoveYou.addCurl(Finger.Ring, FingerCurl.FullCurl, 1.0);
-fslILoveYou.addCurl(Finger.Pinky, FingerCurl.NoCurl, 1.0);
-
-export const fslGoodMorning = new GestureDescription('Good morning');
-fslGoodMorning.addCurl(Finger.Thumb, FingerCurl.NoCurl, 1.0);
-fslGoodMorning.addCurl(Finger.Index, FingerCurl.NoCurl, 1.0);
-fslGoodMorning.addCurl(Finger.Middle, FingerCurl.NoCurl, 1.0);
-fslGoodMorning.addCurl(Finger.Ring, FingerCurl.NoCurl, 1.0);
-fslGoodMorning.addCurl(Finger.Pinky, FingerCurl.NoCurl, 1.0);
-
-export const fslGoodNight = new GestureDescription('Good night');
-fslGoodNight.addCurl(Finger.Thumb, FingerCurl.HalfCurl, 1.0);
-fslGoodNight.addCurl(Finger.Index, FingerCurl.NoCurl, 1.0);
-fslGoodNight.addCurl(Finger.Middle, FingerCurl.NoCurl, 1.0);
-fslGoodNight.addCurl(Finger.Ring, FingerCurl.NoCurl, 1.0);
-fslGoodNight.addCurl(Finger.Pinky, FingerCurl.NoCurl, 1.0);
-
-// Export all FSL gestures including alphabet and common phrases
-export const fslGestures = [
+// Alphabet only - no phrases
+const fslAlphabet = {
   fslA, fslB, fslC, fslD, fslE, fslF, fslG, fslH, fslI, fslJ,
   fslK, fslL, fslM, fslN, fslO, fslP, fslQ, fslR, fslS, fslT,
-  fslU, fslV, fslW, fslX, fslY, fslZ,
-  fslHello, fslThankYou, fslYes, fslNo, fslPlease, fslSorry,
-  fslHelp, fslGoodbye, fslILoveYou, fslGoodMorning, fslGoodNight
-];
+  fslU, fslV, fslW, fslX, fslY, fslZ
+};
+
+export const fslGestures = Object.values(fslAlphabet);

@@ -231,76 +231,13 @@ jGesture.addCurl(Finger.Middle, FingerCurl.FullCurl, 1.0);
 jGesture.addCurl(Finger.Ring, FingerCurl.FullCurl, 1.0);
 jGesture.addCurl(Finger.Pinky, FingerCurl.NoCurl, 1.0);
 
-// Common ASL Words and Phrases
-export const helloGesture = new GestureDescription('Hello');
-helloGesture.addCurl(Finger.Thumb, FingerCurl.NoCurl, 1.0);
-helloGesture.addCurl(Finger.Index, FingerCurl.NoCurl, 1.0);
-helloGesture.addCurl(Finger.Middle, FingerCurl.NoCurl, 1.0);
-helloGesture.addCurl(Finger.Ring, FingerCurl.NoCurl, 1.0);
-helloGesture.addCurl(Finger.Pinky, FingerCurl.NoCurl, 1.0);
-
-export const thankYouGesture = new GestureDescription('Thank you');
-thankYouGesture.addCurl(Finger.Thumb, FingerCurl.NoCurl, 1.0);
-thankYouGesture.addCurl(Finger.Index, FingerCurl.NoCurl, 1.0);
-thankYouGesture.addCurl(Finger.Middle, FingerCurl.NoCurl, 1.0);
-thankYouGesture.addCurl(Finger.Ring, FingerCurl.NoCurl, 1.0);
-thankYouGesture.addCurl(Finger.Pinky, FingerCurl.NoCurl, 1.0);
-
-export const yesGesture = new GestureDescription('Yes');
-yesGesture.addCurl(Finger.Thumb, FingerCurl.NoCurl, 1.0);
-yesGesture.addCurl(Finger.Index, FingerCurl.FullCurl, 1.0);
-yesGesture.addCurl(Finger.Middle, FingerCurl.FullCurl, 1.0);
-yesGesture.addCurl(Finger.Ring, FingerCurl.FullCurl, 1.0);
-yesGesture.addCurl(Finger.Pinky, FingerCurl.FullCurl, 1.0);
-
-export const noGesture = new GestureDescription('No');
-noGesture.addCurl(Finger.Index, FingerCurl.NoCurl, 1.0);
-noGesture.addCurl(Finger.Middle, FingerCurl.NoCurl, 1.0);
-noGesture.addCurl(Finger.Ring, FingerCurl.FullCurl, 1.0);
-noGesture.addCurl(Finger.Pinky, FingerCurl.FullCurl, 1.0);
-
-export const pleaseGesture = new GestureDescription('Please');
-pleaseGesture.addCurl(Finger.Thumb, FingerCurl.NoCurl, 1.0);
-pleaseGesture.addCurl(Finger.Index, FingerCurl.NoCurl, 1.0);
-pleaseGesture.addCurl(Finger.Middle, FingerCurl.NoCurl, 1.0);
-pleaseGesture.addCurl(Finger.Ring, FingerCurl.NoCurl, 1.0);
-pleaseGesture.addCurl(Finger.Pinky, FingerCurl.NoCurl, 1.0);
-
-export const sorryGesture = new GestureDescription('Sorry');
-sorryGesture.addCurl(Finger.Thumb, FingerCurl.HalfCurl, 1.0);
-sorryGesture.addCurl(Finger.Index, FingerCurl.FullCurl, 1.0);
-sorryGesture.addCurl(Finger.Middle, FingerCurl.FullCurl, 1.0);
-sorryGesture.addCurl(Finger.Ring, FingerCurl.FullCurl, 1.0);
-sorryGesture.addCurl(Finger.Pinky, FingerCurl.FullCurl, 1.0);
-
-export const iLoveYouGesture = new GestureDescription('I love you');
-iLoveYouGesture.addCurl(Finger.Thumb, FingerCurl.NoCurl, 1.0);
-iLoveYouGesture.addCurl(Finger.Index, FingerCurl.NoCurl, 1.0);
-iLoveYouGesture.addCurl(Finger.Middle, FingerCurl.FullCurl, 1.0);
-iLoveYouGesture.addCurl(Finger.Ring, FingerCurl.FullCurl, 1.0);
-iLoveYouGesture.addCurl(Finger.Pinky, FingerCurl.NoCurl, 1.0);
-
-export const helpGesture = new GestureDescription('Help');
-helpGesture.addCurl(Finger.Thumb, FingerCurl.NoCurl, 1.0);
-helpGesture.addCurl(Finger.Index, FingerCurl.FullCurl, 1.0);
-helpGesture.addCurl(Finger.Middle, FingerCurl.FullCurl, 1.0);
-helpGesture.addCurl(Finger.Ring, FingerCurl.FullCurl, 1.0);
-helpGesture.addCurl(Finger.Pinky, FingerCurl.FullCurl, 1.0);
-
-export const goodbyeGesture = new GestureDescription('Goodbye');
-goodbyeGesture.addCurl(Finger.Thumb, FingerCurl.NoCurl, 1.0);
-goodbyeGesture.addCurl(Finger.Index, FingerCurl.NoCurl, 1.0);
-goodbyeGesture.addCurl(Finger.Middle, FingerCurl.NoCurl, 1.0);
-goodbyeGesture.addCurl(Finger.Ring, FingerCurl.NoCurl, 1.0);
-goodbyeGesture.addCurl(Finger.Pinky, FingerCurl.NoCurl, 1.0);
-
-// Export all ASL gestures including alphabet and common phrases
-export const aslGestures = [
+// Alphabet only - no phrases
+const aslAlphabet = {
   aGesture, bGesture, cGesture, dGesture, eGesture,
   fGesture, gGesture, hGesture, iGesture, jGesture, kGesture,
   lGesture, mGesture, nGesture, oGesture, pGesture,
   qGesture, rGesture, sGesture, tGesture, uGesture,
-  vGesture, wGesture, xGesture, yGesture, zGesture,
-  helloGesture, thankYouGesture, yesGesture, noGesture, 
-  pleaseGesture, sorryGesture, iLoveYouGesture, helpGesture, goodbyeGesture
-];
+  vGesture, wGesture, xGesture, yGesture, zGesture
+};
+
+export const aslGestures = Object.values(aslAlphabet);
