@@ -1,120 +1,63 @@
 import { useEffect, useState, useRef } from 'react';
-import * as tf from '@tensorflow/tfjs';
-import '@tensorflow/tfjs-backend-webgl';
-import { GestureEstimator } from 'fingerpose';
-import { aslGestures } from '@/lib/aslGestures';
-import { fslGestures } from '@/lib/fslGestures';
-import { aslPhrases } from '@/lib/aslPhrases';
-import { fslPhrases } from '@/lib/fslPhrases';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface RecognitionResult {
   sign: string;
   confidence: number;
   timestamp: number;
+  allPredictions?: Array<{ sign: string; confidence: number }>;
 }
 
 export const useSignRecognition = (language: 'ASL' | 'FSL') => {
-  const [gestureEstimator, setGestureEstimator] = useState<GestureEstimator | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const lastPredictionRef = useRef<string>('');
-  const confidenceThreshold = 6.5; // Relaxed to allow more detections while avoiding false positives
+  const confidenceThreshold = 0.85; // 85% confidence for Roboflow predictions
 
   useEffect(() => {
-    let isMounted = true;
-
-    const initializeGestureRecognition = async () => {
-      try {
-        // Set WebGL backend for optimal performance
-        await tf.setBackend('webgl');
-        await tf.ready();
-
-        // Warm up TFJS backend to avoid first-frame jank
-        tf.tidy(() => {
-          const x = tf.tensor([0, 1, 2, 3]);
-          const y = x.square();
-          y.dataSync();
-        });
-
-        // Select gestures based on language (alphabet + phrases)
-        const gestures = language === 'ASL' ? [...aslGestures, ...aslPhrases] : [...fslGestures, ...fslPhrases];
-        
-        // Initialize GestureEstimator with pre-trained gesture templates
-        const estimator = new GestureEstimator(gestures);
-        
-        console.log(`${language} gesture recognition initialized`);
-        console.log(`Loaded ${gestures.length} ${language} gestures`);
-
-        if (isMounted) {
-          setGestureEstimator(estimator);
-          setIsLoading(false);
-        }
-      } catch (err) {
-        console.error('Error initializing gesture recognition:', err);
-        if (isMounted) {
-          setError('Failed to initialize gesture recognition');
-          setIsLoading(false);
-        }
-      }
-    };
-
-    initializeGestureRecognition();
-
-    return () => {
-      isMounted = false;
-    };
+    // Reset when language changes
+    lastPredictionRef.current = '';
+    setError(null);
   }, [language]);
 
-  const recognizeSign = async (landmarks: any[]): Promise<RecognitionResult | null> => {
-    if (!landmarks || landmarks.length === 0 || !gestureEstimator) {
-      console.log('No landmarks or estimator not ready');
+  const recognizeSign = async (imageBase64: string): Promise<RecognitionResult | null> => {
+    if (!imageBase64) {
       return null;
     }
 
     try {
-      // Use the first hand for recognition
-      const handLandmarks = landmarks[0];
+      setIsLoading(true);
       
-      console.log('Processing landmarks, count:', handLandmarks.length);
-      
-      // Convert MediaPipe landmarks to fingerpose format
-      // MediaPipe gives us landmarks as objects with x, y, z
-      // Fingerpose expects array of [x, y, z] arrays
-      const landmarkArray = handLandmarks.map((landmark: any) => [
-        landmark.x,
-        landmark.y,
-        landmark.z || 0
-      ]);
+      console.log(`Classifying ${language} sign with Roboflow...`);
 
-      console.log('Landmark array prepared, estimating gestures...');
+      // Call Roboflow edge function
+      const { data, error: apiError } = await supabase.functions.invoke('classify-sign-roboflow', {
+        body: {
+          imageBase64,
+          language,
+        },
+      });
 
-      // Estimate gestures using fingerpose with lower threshold
-      const estimations = await gestureEstimator.estimate(landmarkArray, 6.0);
-      
-      console.log('Estimations:', estimations);
-      
-      if (!estimations.gestures || estimations.gestures.length === 0) {
-        console.log('No gestures detected');
+      if (apiError) {
+        console.error('Roboflow API error:', apiError);
+        setError(apiError.message);
         return null;
       }
 
-      // Get the best match
-      const bestGesture = estimations.gestures.reduce((prev: any, current: any) => 
-        (current.score > prev.score) ? current : prev
-      );
+      if (data && data.sign && data.confidence >= confidenceThreshold) {
+        const detectedSign = data.sign;
+        
+        // Prevent duplicate detections
+        if (detectedSign === lastPredictionRef.current) {
+          return null;
+        }
 
-      const confidence = bestGesture.score;
-      const detectedSign = bestGesture.name;
-
-      console.log('Best gesture:', detectedSign, 'Confidence:', confidence);
-
-      // Only return if confidence is above threshold and different from last prediction
-      if (confidence >= confidenceThreshold && detectedSign !== lastPredictionRef.current) {
         lastPredictionRef.current = detectedSign;
         
-        console.log('Sign detected:', detectedSign, 'Confidence:', confidence);
+        console.log('Sign detected:', detectedSign, 'Confidence:', data.confidence);
+        console.log('Top predictions:', data.allPredictions);
         
-        // Add a small delay to prevent rapid repeated detections
+        // Reset after delay
         setTimeout(() => {
           if (lastPredictionRef.current === detectedSign) {
             lastPredictionRef.current = '';
@@ -123,15 +66,19 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
         
         return {
           sign: detectedSign,
-          confidence,
-          timestamp: Date.now()
+          confidence: data.confidence,
+          timestamp: Date.now(),
+          allPredictions: data.allPredictions
         };
       }
 
       return null;
     } catch (err) {
       console.error('Error recognizing sign:', err);
+      setError(err instanceof Error ? err.message : 'Recognition failed');
       return null;
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -140,7 +87,6 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
   };
 
   return {
-    gestureEstimator,
     isLoading,
     error,
     recognizeSign,

@@ -2,3 +2,6 @@ project_id = "lhjeayxlngflbtrtbiwk"
 
 [functions.classify-sign]
 verify_jwt = false
+
+[functions.classify-sign-roboflow]
+verify_jwt = false

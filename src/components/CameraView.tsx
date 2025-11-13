@@ -33,19 +33,16 @@ const CameraView = () => {
   
   const [currentConfidence, setCurrentConfidence] = useState<number | null>(null);
   const [fps, setFps] = useState(0);
+  const [topPredictions, setTopPredictions] = useState<Array<{ sign: string; confidence: number }>>([]);
   const lastFrameTimeRef = useRef<number>(0);
   const frameCountRef = useRef(0);
-  // Use a ref to avoid stale closure for the recognize loop
   const recognizingRef = useRef(false);
-  // Buffer recent predictions for temporal smoothing
   const predictionsBufferRef = useRef<{ sign: string; confidence: number; t: number }[]>([]);
   const lastEmittedRef = useRef<string>('');
-  // Offscreen canvas for auto-exposure (brightness) adjustments
   const exposureCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const exposureFrameRef = useRef(0);
-  const noDetectFramesRef = useRef(0);
-  const lastAiCallAtRef = useRef(0);
-  const aiBusyRef = useRef(false);
+  const lastClassifyAtRef = useRef(0);
+  const classifyBusyRef = useRef(false);
 
   useEffect(() => {
     recognizingRef.current = isRecognizing;
@@ -117,43 +114,37 @@ const CameraView = () => {
 
   const handleRecognition = async (recognition: RecognitionResult) => {
     const now = Date.now();
-    const { sign, confidence } = recognition;
+    const { sign, confidence, allPredictions } = recognition;
+    
+    // Update top predictions display
+    if (allPredictions) {
+      setTopPredictions(allPredictions);
+    }
     
     // Add to buffer
     predictionsBufferRef.current.push({ sign, confidence, t: now });
     
-    // Keep only last 1 second of predictions
-    predictionsBufferRef.current = predictionsBufferRef.current.filter(p => now - p.t < 1000);
+    // Keep only last 2 seconds of predictions
+    predictionsBufferRef.current = predictionsBufferRef.current.filter(p => now - p.t < 2000);
     
-    // Temporal smoothing: check if same sign appears multiple times recently
+    // Temporal smoothing: require 3+ consistent predictions
     const recentSigns = predictionsBufferRef.current.filter(p => p.sign === sign);
-    const minCount = 1;
-    const minAvgConfidence = 6.5;
+    const minCount = 3;
+    const minAvgConfidence = 0.85;
     
     if (recentSigns.length >= minCount) {
       const avgConfidence = recentSigns.reduce((sum, p) => sum + p.confidence, 0) / recentSigns.length;
       
-      // Check against other candidates
-      const otherSigns = new Map<string, number>();
-      for (const p of predictionsBufferRef.current) {
-        if (p.sign !== sign) {
-          otherSigns.set(p.sign, (otherSigns.get(p.sign) || 0) + 1);
-        }
-      }
-      const maxOther = Math.max(0, ...Array.from(otherSigns.values()));
-      const margin = recentSigns.length - maxOther;
-      const minMargin = 1;
-      
-      if (avgConfidence >= minAvgConfidence && margin >= minMargin && sign !== lastEmittedRef.current) {
+      if (avgConfidence >= minAvgConfidence && sign !== lastEmittedRef.current) {
         lastEmittedRef.current = sign;
         
         // Translate if FSL
         const displaySign = settings.language === 'FSL' ? (fslToFilipino[sign] || sign) : sign;
         
-        // Append to output (not replace)
+        // Append to output
         const newText = outputText ? `${outputText} ${displaySign}` : displaySign;
         setOutputText(newText);
-        setCurrentConfidence(avgConfidence / 10);
+        setCurrentConfidence(avgConfidence);
         
         // Speak with appropriate language
         if (settings.outputMode === 'speech' && speechSupported) {
@@ -174,27 +165,21 @@ const CameraView = () => {
     }
   };
 
-  // Heavier AI pipeline fallback: append AI-detected sign immediately
-  const handleAiSign = (aiSign: string) => {
-    if (!aiSign) return;
-    // Avoid immediate duplicates
-    if (aiSign === lastEmittedRef.current) return;
-    lastEmittedRef.current = aiSign;
-
-    const displaySign = settings.language === 'FSL' ? (fslToFilipino[aiSign] || aiSign) : aiSign;
-    const newText = outputText ? `${outputText} ${displaySign}` : displaySign;
-    setOutputText(newText);
-    setCurrentConfidence(0.95);
-
-    if (settings.outputMode === 'speech' && speechSupported) {
-      const lang = settings.language === 'FSL' ? 'fil-PH' : 'en-US';
-      speak(displaySign, { lang });
+  // Capture frame as base64 for Roboflow
+  const captureFrame = (video: HTMLVideoElement): string | null => {
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = 640; // Resize for API efficiency
+      canvas.height = 480;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return null;
+      
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      return canvas.toDataURL('image/jpeg', 0.8);
+    } catch (err) {
+      console.error('Error capturing frame:', err);
+      return null;
     }
-
-    // reset lastEmitted after a brief delay
-    setTimeout(() => {
-      if (lastEmittedRef.current === aiSign) lastEmittedRef.current = '';
-    }, 1500);
   };
 
   const processFrame = async () => {
@@ -235,43 +220,32 @@ const CameraView = () => {
     if (results) {
       drawLandmarks(canvas, results);
 
-      // Perform sign recognition
+      // Classify sign every 300ms if hand detected
       if (results.landmarks && results.landmarks.length > 0) {
-        const recognition: RecognitionResult | null = await recognizeSign(results.landmarks);
+        const nowTs = Date.now();
         
-        if (recognition) {
-          await handleRecognition(recognition);
-          noDetectFramesRef.current = 0;
-        } else {
-          noDetectFramesRef.current++;
-          const nowTs = Date.now();
-          if (
-            noDetectFramesRef.current >= 12 &&
-            !aiBusyRef.current &&
-            nowTs - lastAiCallAtRef.current > 800
-          ) {
-            aiBusyRef.current = true;
-            lastAiCallAtRef.current = nowTs;
+        // Throttle API calls to 2-3 per second
+        if (!classifyBusyRef.current && nowTs - lastClassifyAtRef.current > 300) {
+          classifyBusyRef.current = true;
+          lastClassifyAtRef.current = nowTs;
+          
+          // Capture frame for Roboflow
+          const imageBase64 = captureFrame(video);
+          
+          if (imageBase64) {
             try {
-              const { data, error } = await supabase.functions.invoke('classify-sign', {
-                body: {
-                  landmarks: results.landmarks,
-                  language: settings.language,
-                  recentPredictions: predictionsBufferRef.current.slice(-5).map((p) => p.sign),
-                },
-              });
-              if (error) {
-                console.error('AI classify error:', error);
-              }
-              if (data && data.sign) {
-                handleAiSign(data.sign);
-                noDetectFramesRef.current = 0;
+              const recognition = await recognizeSign(imageBase64);
+              
+              if (recognition) {
+                await handleRecognition(recognition);
               }
             } catch (e) {
-              console.error('AI classify exception:', e);
+              console.error('Classification exception:', e);
             } finally {
-              aiBusyRef.current = false;
+              classifyBusyRef.current = false;
             }
+          } else {
+            classifyBusyRef.current = false;
           }
         }
       }
@@ -438,13 +412,24 @@ const CameraView = () => {
                 variant="secondary" 
                 className="bg-background/80 backdrop-blur-sm"
                 style={{
-                  backgroundColor: currentConfidence > 0.8 ? 'hsl(142, 71%, 45%, 0.8)' : 
-                                   currentConfidence > 0.6 ? 'hsl(48, 96%, 53%, 0.8)' : 
+                  backgroundColor: currentConfidence > 0.85 ? 'hsl(142, 71%, 45%, 0.8)' : 
+                                   currentConfidence > 0.7 ? 'hsl(48, 96%, 53%, 0.8)' : 
                                    'hsl(0, 72%, 51%, 0.8)'
                 }}
               >
-                Confidence: {(currentConfidence * 100).toFixed(0)}%
+                {(currentConfidence * 100).toFixed(0)}%
               </Badge>
+            )}
+            {topPredictions.length > 0 && (
+              <div className="bg-background/90 backdrop-blur-sm p-2 rounded-md text-xs">
+                <div className="font-semibold mb-1">Top Predictions:</div>
+                {topPredictions.slice(0, 3).map((pred, idx) => (
+                  <div key={idx} className="flex justify-between gap-2">
+                    <span>{pred.sign}</span>
+                    <span className="text-muted-foreground">{(pred.confidence * 100).toFixed(0)}%</span>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         )}
