@@ -27,17 +27,32 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
   const loadModel = async () => {
     try {
       setIsLoading(true);
-      
-      // Create a simple but effective model for gesture classification
-      const model = tf.sequential({
-        layers: [
-          tf.layers.dense({ inputShape: [63], units: 128, activation: 'relu' }),
-          tf.layers.dropout({ rate: 0.2 }),
-          tf.layers.dense({ units: 64, activation: 'relu' }),
-          tf.layers.dropout({ rate: 0.2 }),
-          tf.layers.dense({ units: 26, activation: 'softmax' })
-        ]
-      });
+
+      // Ensure TFJS backend is ready (prefer WebGL for speed)
+      try {
+        await tf.setBackend('webgl');
+      } catch {}
+      await tf.ready();
+
+      // Try to load a pre-trained model from public/models/{asl|fsl}/model.json
+      const modelUrl = `/models/${language.toLowerCase()}/model.json`;
+      let model: tf.LayersModel | null = null;
+      try {
+        model = await tf.loadLayersModel(modelUrl);
+        console.log(`${language} pre-trained model loaded from ${modelUrl}`);
+      } catch (e) {
+        console.warn(`Pre-trained model not found at ${modelUrl}. Using fallback untrained model.`, e);
+        // Fallback: simple model architecture (untrained)
+        model = tf.sequential({
+          layers: [
+            tf.layers.dense({ inputShape: [63], units: 128, activation: 'relu' }),
+            tf.layers.dropout({ rate: 0.2 }),
+            tf.layers.dense({ units: 64, activation: 'relu' }),
+            tf.layers.dropout({ rate: 0.2 }),
+            tf.layers.dense({ units: 26, activation: 'softmax' })
+          ]
+        });
+      }
 
       model.compile({
         optimizer: tf.train.adam(0.001),
