@@ -1,5 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import * as tf from '@tensorflow/tfjs';
+import { loadTrainedModel, trainAndSaveModel } from '@/lib/modelTrainer';
+import { ALPHABET } from '@/lib/trainingData';
 
 export interface RecognitionResult {
   sign: string;
@@ -8,8 +10,6 @@ export interface RecognitionResult {
   allPredictions?: Array<{ sign: string; confidence: number }>;
 }
 
-const ASL_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
-const FSL_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
 export const useSignRecognition = (language: 'ASL' | 'FSL') => {
   const [isLoading, setIsLoading] = useState(true);
@@ -34,31 +34,19 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
       } catch {}
       await tf.ready();
 
-      // Try to load a pre-trained model from public/models/{asl|fsl}/model.json
-      const modelUrl = `/models/${language.toLowerCase()}/model.json`;
-      let model: tf.LayersModel | null = null;
-      try {
-        model = await tf.loadLayersModel(modelUrl);
-        console.log(`${language} pre-trained model loaded from ${modelUrl}`);
-      } catch (e) {
-        console.warn(`Pre-trained model not found at ${modelUrl}. Using fallback untrained model.`, e);
-        // Fallback: simple model architecture (untrained)
-        model = tf.sequential({
-          layers: [
-            tf.layers.dense({ inputShape: [63], units: 128, activation: 'relu' }),
-            tf.layers.dropout({ rate: 0.2 }),
-            tf.layers.dense({ units: 64, activation: 'relu' }),
-            tf.layers.dropout({ rate: 0.2 }),
-            tf.layers.dense({ units: 26, activation: 'softmax' })
-          ]
-        });
+      // Try to load pre-trained model from localStorage first
+      let model = await loadTrainedModel(language);
+      
+      if (!model) {
+        console.log(`No pre-trained ${language} model found. Training new model...`);
+        // Train a new model with synthetic data
+        await trainAndSaveModel(language);
+        model = await loadTrainedModel(language);
       }
-
-      model.compile({
-        optimizer: tf.train.adam(0.001),
-        loss: 'categoricalCrossentropy',
-        metrics: ['accuracy']
-      });
+      
+      if (!model) {
+        throw new Error('Failed to load or train model');
+      }
 
       modelRef.current = model;
       setIsLoading(false);
@@ -109,10 +97,9 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
       prediction.dispose();
 
       // Get top predictions
-      const alphabet = language === 'ASL' ? ASL_ALPHABET : FSL_ALPHABET;
       const predictions = Array.from(probabilities)
         .map((prob, idx) => ({
-          sign: alphabet[idx],
+          sign: ALPHABET[idx],
           confidence: prob
         }))
         .sort((a, b) => b.confidence - a.confidence);
