@@ -16,7 +16,7 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
   const [error, setError] = useState<string | null>(null);
   const lastPredictionRef = useRef<string>('');
   const modelRef = useRef<tf.LayersModel | null>(null);
-  const confidenceThreshold = 0.75;
+  const confidenceThreshold = 0.65; // Lowered for better detection rate
 
   useEffect(() => {
     lastPredictionRef.current = '';

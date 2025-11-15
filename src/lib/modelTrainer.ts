@@ -71,19 +71,22 @@ export const trainAndSaveModel = async (language: 'ASL' | 'FSL'): Promise<void> 
     metrics: ['accuracy']
   });
   
-  // Train
+  // Train with more epochs for better accuracy
   await model.fit(trainX, trainY, {
-    epochs: 50,
+    epochs: 100,
     batchSize: 32,
     validationData: [valX, valY],
+    shuffle: true,
     callbacks: {
       onEpochEnd: (epoch, logs) => {
-        console.log(
-          `Epoch ${epoch + 1}: loss=${logs?.loss.toFixed(4)}, ` +
-          `acc=${logs?.acc.toFixed(4)}, ` +
-          `val_loss=${logs?.val_loss.toFixed(4)}, ` +
-          `val_acc=${logs?.val_acc.toFixed(4)}`
-        );
+        if ((epoch + 1) % 10 === 0) {
+          console.log(
+            `Epoch ${epoch + 1}: loss=${logs?.loss.toFixed(4)}, ` +
+            `acc=${logs?.acc.toFixed(4)}, ` +
+            `val_loss=${logs?.val_loss.toFixed(4)}, ` +
+            `val_acc=${logs?.val_acc.toFixed(4)}`
+          );
+        }
       }
     }
   });

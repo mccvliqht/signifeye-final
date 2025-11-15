@@ -203,11 +203,11 @@ const CameraView = () => {
     if (results) {
       drawLandmarks(canvas, results);
 
-      // Classify sign every 150ms if hand detected (5-7 per second)
+      // Classify sign every 333ms if hand detected (~3 per second for better performance)
       if (results.landmarks && results.landmarks.length > 0) {
         const nowTs = Date.now();
         
-        if (!classifyBusyRef.current && nowTs - lastClassifyAtRef.current > 150) {
+        if (!classifyBusyRef.current && nowTs - lastClassifyAtRef.current > 333) {
           classifyBusyRef.current = true;
           lastClassifyAtRef.current = nowTs;
           
@@ -217,6 +217,8 @@ const CameraView = () => {
             
             if (recognition) {
               await handleRecognition(recognition);
+              setCurrentConfidence(recognition.confidence);
+              setTopPredictions(recognition.allPredictions || []);
             }
           } catch (e) {
             console.error('Classification exception:', e);
@@ -224,6 +226,10 @@ const CameraView = () => {
             classifyBusyRef.current = false;
           }
         }
+      } else {
+        // Reset when no hand detected
+        setCurrentConfidence(null);
+        setTopPredictions([]);
       }
     }
 
