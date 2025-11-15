@@ -61,22 +61,28 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
   const preprocessLandmarks = (landmarks: any[]): number[] => {
     if (!landmarks || landmarks.length === 0) return [];
     
-    // Flatten landmarks and normalize
+    // Use first detected hand
     const handLandmarks = landmarks[0];
-    const features: number[] = [];
-    
-    // Get wrist position as reference
+    if (!handLandmarks || handLandmarks.length < 21) return [];
+
+    // Flatten relative to wrist
     const wrist = handLandmarks[0];
-    
-    // Calculate relative positions and angles
+    const raw: number[] = [];
     for (let i = 0; i < 21; i++) {
-      const landmark = handLandmarks[i];
-      // Relative to wrist
-      features.push(landmark.x - wrist.x);
-      features.push(landmark.y - wrist.y);
-      features.push(landmark.z - wrist.z);
+      const lm = handLandmarks[i];
+      raw.push(lm.x - wrist.x);
+      raw.push(lm.y - wrist.y);
+      raw.push(lm.z - wrist.z);
     }
-    
+
+    // Normalize by max absolute value to be scale-invariant
+    let maxAbs = 0.0001;
+    for (let i = 0; i < raw.length; i++) {
+      const v = Math.abs(raw[i]);
+      if (v > maxAbs) maxAbs = v;
+    }
+    const features = raw.map(v => v / maxAbs);
+
     return features;
   };
 

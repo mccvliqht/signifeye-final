@@ -127,10 +127,22 @@ const CameraView = () => {
     // Keep only last 2 seconds of predictions
     predictionsBufferRef.current = predictionsBufferRef.current.filter(p => now - p.t < 2000);
     
-    // Temporal smoothing: require 3+ consistent predictions
+    // Immediate emit on very high confidence
+    if (confidence >= 0.9 && sign !== lastEmittedRef.current) {
+      const displaySign = sign; // Alphabet only for now
+      const newText = outputText ? `${outputText} ${displaySign}` : displaySign;
+      setOutputText(newText);
+      lastEmittedRef.current = sign;
+      setCurrentConfidence(confidence);
+      predictionsBufferRef.current = [];
+      setTimeout(() => { if (lastEmittedRef.current === sign) lastEmittedRef.current = ''; }, 1200);
+      return;
+    }
+    
+    // Temporal smoothing: require 2+ consistent predictions with moderate confidence
     const recentSigns = predictionsBufferRef.current.filter(p => p.sign === sign);
-    const minCount = 3;
-    const minAvgConfidence = 0.85;
+    const minCount = 2;
+    const minAvgConfidence = 0.7;
     
     if (recentSigns.length >= minCount) {
       const avgConfidence = recentSigns.reduce((sum, p) => sum + p.confidence, 0) / recentSigns.length;
@@ -138,15 +150,15 @@ const CameraView = () => {
       if (avgConfidence >= minAvgConfidence && sign !== lastEmittedRef.current) {
         lastEmittedRef.current = sign;
         
-        // Translate if FSL
-        const displaySign = settings.language === 'FSL' ? (fslToFilipino[sign] || sign) : sign;
+        // Alphabet output only (no word/phrase mapping while focusing on A-Z)
+        const displaySign = sign;
         
         // Append to output
         const newText = outputText ? `${outputText} ${displaySign}` : displaySign;
         setOutputText(newText);
         setCurrentConfidence(avgConfidence);
         
-        // Speak with appropriate language
+        // Optional speech
         if (settings.outputMode === 'speech' && speechSupported) {
           const lang = settings.language === 'FSL' ? 'fil-PH' : 'en-US';
           speak(displaySign, { lang });
@@ -160,7 +172,7 @@ const CameraView = () => {
           if (lastEmittedRef.current === sign) {
             lastEmittedRef.current = '';
           }
-        }, 1500);
+        }, 1200);
       }
     }
   };
