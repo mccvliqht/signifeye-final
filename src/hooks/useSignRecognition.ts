@@ -34,19 +34,37 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
       } catch {}
       await tf.ready();
 
-      // Try to load pre-trained model from localStorage first
-      let model = await loadTrainedModel(language);
-      
+      let model: tf.LayersModel | null = null;
+
+      // Prefer public pre-trained model for ASL if available
+      if (language === 'ASL') {
+        try {
+          model = await tf.loadLayersModel('/models/asl/model.json');
+          console.log('Loaded public ASL model from /models/asl/model.json');
+        } catch (e) {
+          console.warn('Failed to load public ASL model; falling back', e);
+        }
+      }
+
+      // Fallback to localStorage-trained model
+      if (!model) {
+        model = await loadTrainedModel(language);
+      }
+
+      // If still no model, train a new one (synthetic) as last resort
       if (!model) {
         console.log(`No pre-trained ${language} model found. Training new model...`);
-        // Train a new model with synthetic data
         await trainAndSaveModel(language);
         model = await loadTrainedModel(language);
       }
-      
+
       if (!model) {
         throw new Error('Failed to load or train model');
       }
+
+      // Warm up model for faster first inference
+      const warmup = model.predict(tf.zeros([1, 63])) as tf.Tensor;
+      warmup.dispose();
 
       modelRef.current = model;
       setIsLoading(false);
@@ -102,8 +120,12 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
       inputTensor.dispose();
       prediction.dispose();
 
-      // Get top predictions
-      const predictions = Array.from(probabilities)
+      // Get top predictions (limit to A-Z if model has extra classes)
+      const probsArr = Array.from(probabilities);
+      const classCount = Math.min(26, probsArr.length);
+      const considered = probsArr.slice(0, classCount);
+
+      const predictions = considered
         .map((prob, idx) => ({
           sign: ALPHABET[idx],
           confidence: prob
