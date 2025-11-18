@@ -27,7 +27,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [settings, setSettings] = useState<AppSettings>({
-    language: 'FSL',
+    language: 'ASL',
     outputMode: 'text',
     theme: 'dark',
     fontSize: 16,
