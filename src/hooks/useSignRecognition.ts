@@ -27,35 +27,57 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
   const loadModel = async () => {
     try {
       setIsLoading(true);
+      setError(null);
+      console.log(`[SignRecognition] Starting model load for ${language}...`);
 
       // Ensure TFJS backend is ready (prefer WebGL for speed)
       try {
         await tf.setBackend('webgl');
-      } catch {}
+        console.log('[SignRecognition] WebGL backend set');
+      } catch (e) {
+        console.warn('[SignRecognition] WebGL not available, using default backend');
+      }
       await tf.ready();
+      console.log('[SignRecognition] TensorFlow.js ready');
 
       let model: tf.LayersModel | null = null;
 
       // Prefer public pre-trained model for ASL if available
       if (language === 'ASL') {
         try {
-          model = await tf.loadLayersModel('/models/asl/model.json');
-          console.log('Loaded public ASL model from /models/asl/model.json');
+          console.log('[SignRecognition] Loading ASL model from /models/asl/model.json...');
+          
+          // Add timeout for model loading
+          const loadPromise = tf.loadLayersModel('/models/asl/model.json');
+          const timeoutPromise = new Promise<never>((_, reject) => 
+            setTimeout(() => reject(new Error('Model loading timeout after 30s')), 30000)
+          );
+          
+          model = await Promise.race([loadPromise, timeoutPromise]);
+          console.log('[SignRecognition] Successfully loaded ASL model!');
         } catch (e) {
-          console.warn('Failed to load public ASL model; falling back', e);
+          console.error('[SignRecognition] Failed to load public ASL model:', e);
+          console.log('[SignRecognition] Will try fallback options...');
         }
       }
 
       // Fallback to localStorage-trained model
       if (!model) {
+        console.log('[SignRecognition] Trying localStorage model...');
         model = await loadTrainedModel(language);
+        if (model) {
+          console.log('[SignRecognition] Loaded model from localStorage');
+        }
       }
 
       // If still no model, train a new one (synthetic) as last resort
       if (!model) {
-        console.log(`No pre-trained ${language} model found. Training new model...`);
+        console.log(`[SignRecognition] No pre-trained ${language} model found. Training new model...`);
         await trainAndSaveModel(language);
         model = await loadTrainedModel(language);
+        if (model) {
+          console.log('[SignRecognition] Trained and loaded new model');
+        }
       }
 
       if (!model) {
@@ -63,15 +85,16 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
       }
 
       // Warm up model for faster first inference
+      console.log('[SignRecognition] Warming up model...');
       const warmup = model.predict(tf.zeros([1, 63])) as tf.Tensor;
       warmup.dispose();
 
       modelRef.current = model;
       setIsLoading(false);
-      console.log(`${language} model loaded successfully`);
+      console.log(`[SignRecognition] ${language} model loaded and ready!`);
     } catch (err) {
-      console.error('Error loading model:', err);
-      setError('Failed to load recognition model');
+      console.error('[SignRecognition] Error loading model:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load recognition model');
       setIsLoading(false);
     }
   };
