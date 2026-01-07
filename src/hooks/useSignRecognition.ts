@@ -148,7 +148,7 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
     // FIX 1: "P" (Standard Downward P)
     // ----------------------------------------------------------------------
     // If AI thinks it's N, Z, D, S but we are clearly pointing DOWN, it's P.
-    if (['N', 'S', 'Z', 'D', 'H'].includes(prediction)) { 
+    if (['S', 'Z', 'D', 'H'].includes(prediction)) { 
       // Added 'H' here because sometimes H gets confused with P down
       if (isPointingDown) {
         return 'P'; 
@@ -189,16 +189,6 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
             return 'H'; // Thumb outside/tucked = H
         }
       }
-    }
-
-    // ----------------------------------------------------------------------
-    // FIX 3: "T" (Thumb Tucked)
-    // ----------------------------------------------------------------------
-    if (['A', 'S', 'M', 'N'].includes(prediction)) {
-       const indexMCP = handLandmarks[5];
-       const thumbIsTucked = (thumbTip.x > Math.min(indexMCP.x, indexTip.x)) && 
-                             (thumbTip.x < Math.max(indexMCP.x, indexTip.x));
-       if (thumbIsTucked) return 'T';
     }
 
     return prediction;
