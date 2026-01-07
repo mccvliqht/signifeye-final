@@ -10,13 +10,12 @@ export interface RecognitionResult {
   allPredictions?: Array<{ sign: string; confidence: number }>;
 }
 
-
 export const useSignRecognition = (language: 'ASL' | 'FSL') => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const lastPredictionRef = useRef<string>('');
   const modelRef = useRef<tf.LayersModel | null>(null);
-  const confidenceThreshold = 0.65; // Lowered for better detection rate
+  const confidenceThreshold = 0.50; // Kept lowered threshold
 
   useEffect(() => {
     lastPredictionRef.current = '';
@@ -47,7 +46,6 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
         try {
           console.log('[SignRecognition] Loading ASL model from /models/asl/model.json...');
           
-          // Add timeout for model loading
           const loadPromise = tf.loadLayersModel('/models/asl/model.json');
           const timeoutPromise = new Promise<never>((_, reject) => 
             setTimeout(() => reject(new Error('Model loading timeout after 30s')), 30000)
@@ -127,6 +125,85 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
     return features;
   };
 
+// --- UPDATED: Smart Correction Logic (Fixes G, H, P) ---
+  const applyManualCorrections = (prediction: string, handLandmarks: any[]): string => {
+    if (!handLandmarks || handLandmarks.length < 21) return prediction;
+
+    // MediaPipe Landmarks: 0=Wrist, 8=IndexTip, 12=MiddleTip, 4=ThumbTip
+    const wrist = handLandmarks[0];
+    const thumbTip = handLandmarks[4];
+    const indexTip = handLandmarks[8];
+    const middleTip = handLandmarks[12];
+
+    // 1. Calculate Directions
+    // Y increases downwards in screen coordinates.
+    const isPointingDown = indexTip.y > wrist.y; 
+    
+    // Check if hand is Horizontal (X distance > Y distance)
+    const xDist = Math.abs(indexTip.x - wrist.x);
+    const yDist = Math.abs(indexTip.y - wrist.y);
+    const isHorizontal = xDist > yDist;
+
+    // ----------------------------------------------------------------------
+    // FIX 1: "P" (Standard Downward P)
+    // ----------------------------------------------------------------------
+    // If AI thinks it's N, Z, D, S but we are clearly pointing DOWN, it's P.
+    if (['N', 'S', 'Z', 'D', 'H'].includes(prediction)) { 
+      // Added 'H' here because sometimes H gets confused with P down
+      if (isPointingDown) {
+        return 'P'; 
+      }
+    }
+
+    // ----------------------------------------------------------------------
+    // FIX 2: The "Sideways" Conflict (G vs H vs P)
+    // ----------------------------------------------------------------------
+    // If the hand is sideways, it could be G, H, or a sideways P.
+    if (['G', 'H', 'Z', 'D', 'L', 'P'].includes(prediction)) {
+      if (isHorizontal && !isPointingDown) {
+        
+        // Step A: Check Middle Finger Length (Distinguishes G from H/P)
+        const indexLen = Math.hypot(indexTip.x - wrist.x, indexTip.y - wrist.y);
+        const middleLen = Math.hypot(middleTip.x - wrist.x, middleTip.y - wrist.y);
+
+        // If Middle finger is short (curled), it is G.
+        if (middleLen < (indexLen * 0.85)) {
+            return 'G';
+        } 
+        
+        // Step B: It's NOT G. So it is either H or P.
+        // Distinguish H vs P using the THUMB.
+        // In "H", fingers are together. 
+        // In "P", thumb is wedged BETWEEN Index and Middle.
+        
+        // Check if Thumb Y is between Index Y and Middle Y
+        const minY = Math.min(indexTip.y, middleTip.y);
+        const maxY = Math.max(indexTip.y, middleTip.y);
+        
+        // If thumb is clearly between the two fingers vertically
+        const isThumbBetween = (thumbTip.y > minY) && (thumbTip.y < maxY);
+        
+        if (isThumbBetween) {
+            return 'P'; // Thumb splitting fingers = P
+        } else {
+            return 'H'; // Thumb outside/tucked = H
+        }
+      }
+    }
+
+    // ----------------------------------------------------------------------
+    // FIX 3: "T" (Thumb Tucked)
+    // ----------------------------------------------------------------------
+    if (['A', 'S', 'M', 'N'].includes(prediction)) {
+       const indexMCP = handLandmarks[5];
+       const thumbIsTucked = (thumbTip.x > Math.min(indexMCP.x, indexTip.x)) && 
+                             (thumbTip.x < Math.max(indexMCP.x, indexTip.x));
+       if (thumbIsTucked) return 'T';
+    }
+
+    return prediction;
+  };
+
   const recognizeSign = async (landmarks: any[]): Promise<RecognitionResult | null> => {
     if (!landmarks || landmarks.length === 0 || !modelRef.current) {
       return null;
@@ -143,9 +220,10 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
       inputTensor.dispose();
       prediction.dispose();
 
-      // Get top predictions (limit to A-Z if model has extra classes)
+      // Get top predictions
       const probsArr = Array.from(probabilities);
-      const classCount = Math.min(26, probsArr.length);
+      // ALLOW MORE THAN 26! Change 26 to 50 (or just remove the limit)
+      const classCount = probsArr.length; 
       const considered = probsArr.slice(0, classCount);
 
       const predictions = considered
@@ -158,7 +236,13 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
       const topPrediction = predictions[0];
 
       if (topPrediction.confidence >= confidenceThreshold) {
-        const detectedSign = topPrediction.sign;
+        let detectedSign = topPrediction.sign;
+        
+        // --- APPLY MANUAL FIXES HERE ---
+        // Pass the raw landmarks (not the processed features)
+        if (landmarks && landmarks.length > 0) {
+           detectedSign = applyManualCorrections(detectedSign, landmarks[0]);
+        }
         
         // Prevent duplicate detections
         if (detectedSign === lastPredictionRef.current) {
@@ -167,7 +251,7 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
 
         lastPredictionRef.current = detectedSign;
         
-        console.log('Sign detected:', detectedSign, 'Confidence:', topPrediction.confidence);
+        console.log('Sign detected:', detectedSign, 'Original:', topPrediction.sign);
         
         // Reset after delay
         setTimeout(() => {
