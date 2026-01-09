@@ -2,8 +2,8 @@ import { useEffect, useState, useRef } from 'react';
 import * as tf from '@tensorflow/tfjs';
 import * as fp from 'fingerpose'; 
 
-// --- 1. Added NoGesture to imports ---
-import { HelloGesture, ILYGesture, NoGesture } from '@/lib/customGestures'; 
+// --- 1. Corrected Imports: Removed NoGesture, Added WaitGesture ---
+import { HelloGesture, ILYGesture, WaitGesture } from '@/lib/customGestures'; 
 import { loadTrainedModel, trainAndSaveModel } from '@/lib/modelTrainer';
 import { ALPHABET } from '@/lib/trainingData';
 
@@ -23,7 +23,7 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
   const gestureEstimatorRef = useRef<fp.GestureEstimator | null>(null);
   const confidenceThreshold = 0.50; 
 
-  // --- 2. Initialize Fingerpose with the new "No" gesture ---
+  // --- 2. Initialize Estimator with "Wait" ---
   useEffect(() => {
     lastPredictionRef.current = '';
     setError(null);
@@ -31,7 +31,7 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
     gestureEstimatorRef.current = new fp.GestureEstimator([
         HelloGesture, 
         ILYGesture,
-        NoGesture // <--- "No" is now active
+        WaitGesture // <--- "Wait" is now active
     ]);
 
     loadModel();
@@ -67,7 +67,6 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
       }
       if (!model) throw new Error('Failed to load model');
 
-      // Warmup
       const warmup = model.predict(tf.zeros([1, 63])) as tf.Tensor;
       warmup.dispose();
 
@@ -109,11 +108,22 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
     const thumbTip = handLandmarks[4];
     const indexTip = handLandmarks[8];
     const middleTip = handLandmarks[12];
+    const indexBase = handLandmarks[5];
 
     const isPointingDown = indexTip.y > wrist.y; 
     const xDist = Math.abs(indexTip.x - wrist.x);
     const yDist = Math.abs(indexTip.y - wrist.y);
     const isHorizontal = xDist > yDist;
+
+    // --- FIX FOR 'L' vs 'Wait' Conflict ---
+    // If alphabet model predicts 'L', check if thumb is actually extended
+    if (prediction === 'L') {
+        const thumbExtension = Math.abs(thumbTip.x - indexBase.x);
+        // If thumb is tucked, it's not a proper 'L'
+        if (thumbExtension < 0.05) { 
+            return lastPredictionRef.current === 'Wait' ? 'Wait' : prediction;
+        }
+    }
 
     if (['S', 'Z', 'D', 'H'].includes(prediction)) { 
       if (isPointingDown) return 'P'; 
@@ -137,39 +147,43 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
   };
 
   const recognizeSign = async (landmarks: any[]): Promise<RecognitionResult | null> => {
-    if (!landmarks || landmarks.length === 0) return null;
+    if (!landmarks || landmarks.length === 0) {
+        lastPredictionRef.current = ''; 
+        return null;
+    }
 
+    // A. Fingerpose Word Detection
     if (gestureEstimatorRef.current) {
         const hand = landmarks[0]; 
         const fpLandmarks = hand.map((lm: any) => [lm.x, lm.y, lm.z]);
         
-        // Estimate with high confidence threshold
-        const gestureEst = await gestureEstimatorRef.current.estimate(fpLandmarks, 8.5);
+        const gestureEst = await gestureEstimatorRef.current.estimate(fpLandmarks, 7.5);
 
         if (gestureEst.gestures.length > 0) {
             const bestGesture = gestureEst.gestures.reduce((p, c) => (p.score > c.score ? p : c));
             
-            // Score check to prevent alphabet letters from being misidentified as words
-            if (bestGesture.score > 8.0) { 
+            if (bestGesture.score > 8.5) { 
                 if (bestGesture.name === lastPredictionRef.current) return null;
                 lastPredictionRef.current = bestGesture.name;
 
-                console.log('Word Detected:', bestGesture.name);
-                
                 setTimeout(() => {
                     if (lastPredictionRef.current === bestGesture.name) lastPredictionRef.current = '';
                 }, 2000); 
 
+                const confidence = bestGesture.score / 10;
+
                 return {
                     sign: bestGesture.name,
-                    confidence: bestGesture.score / 10,
+                    confidence: confidence,
                     timestamp: Date.now(),
-                    type: 'static'
+                    type: 'static',
+                    allPredictions: [{ sign: bestGesture.name, confidence: confidence }]
                 };
             }
         }
     }
 
+    // B. Alphabet Model (TFJS)
     if (!modelRef.current) return null;
 
     try {
@@ -189,31 +203,36 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
 
       const topPrediction = predictions[0];
 
-      if (topPrediction.confidence >= confidenceThreshold) {
-        let detectedSign = topPrediction.sign;
-        
-        detectedSign = applyManualCorrections(detectedSign, landmarks[0]);
-        
-        if (detectedSign === lastPredictionRef.current) return null;
-
-        lastPredictionRef.current = detectedSign;
-        
-        console.log('Alphabet Sign detected:', detectedSign);
-        
-        setTimeout(() => {
-          if (lastPredictionRef.current === detectedSign) lastPredictionRef.current = '';
-        }, 1500);
-        
-        return {
-          sign: detectedSign,
-          confidence: topPrediction.confidence,
-          timestamp: Date.now(),
-          allPredictions: predictions.slice(0, 5),
-          type: 'alphabet'
-        };
+      // --- AUTO-CLEAR LOGIC ---
+      if (topPrediction.confidence < confidenceThreshold) {
+          lastPredictionRef.current = '';
+          return {
+              sign: '',
+              confidence: 0,
+              timestamp: Date.now(),
+              allPredictions: [],
+              type: 'alphabet'
+          };
       }
 
-      return null;
+      if (topPrediction.sign === lastPredictionRef.current) return null;
+
+      let detectedSign = topPrediction.sign;
+      detectedSign = applyManualCorrections(detectedSign, landmarks[0]);
+      
+      lastPredictionRef.current = detectedSign;
+      
+      setTimeout(() => {
+        if (lastPredictionRef.current === detectedSign) lastPredictionRef.current = '';
+      }, 1500);
+      
+      return {
+        sign: detectedSign,
+        confidence: topPrediction.confidence,
+        timestamp: Date.now(),
+        allPredictions: predictions.slice(0, 5),
+        type: 'alphabet'
+      };
     } catch (err) {
       console.error('Error recognizing sign:', err);
       return null;
