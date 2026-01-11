@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import * as tf from '@tensorflow/tfjs';
 import * as fp from 'fingerpose'; 
 
-// --- 1. Corrected Imports: Removed NoGesture, Added WaitGesture ---
+// Import your custom gestures
 import { HelloGesture, ILYGesture, WaitGesture } from '@/lib/customGestures'; 
 import { loadTrainedModel, trainAndSaveModel } from '@/lib/modelTrainer';
 import { ALPHABET } from '@/lib/trainingData';
@@ -12,7 +12,7 @@ export interface RecognitionResult {
   confidence: number;
   timestamp: number;
   allPredictions?: Array<{ sign: string; confidence: number }>;
-  type?: 'static' | 'alphabet';
+  type?: 'static' | 'alphabet' | 'dynamic';
 }
 
 export const useSignRecognition = (language: 'ASL' | 'FSL') => {
@@ -21,9 +21,12 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
   const lastPredictionRef = useRef<string>('');
   const modelRef = useRef<tf.LayersModel | null>(null);
   const gestureEstimatorRef = useRef<fp.GestureEstimator | null>(null);
-  const confidenceThreshold = 0.50; 
+  const confidenceThreshold = 0.60; // TInaasan ko onti para bawas noise
 
-  // --- 2. Initialize Estimator with "Wait" ---
+  // --- HISTORY TRACKER ---
+  // Stores x,y coordinates of the Index Finger Tip
+  const movementHistory = useRef<{x: number, y: number}[]>([]);
+
   useEffect(() => {
     lastPredictionRef.current = '';
     setError(null);
@@ -31,7 +34,7 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
     gestureEstimatorRef.current = new fp.GestureEstimator([
         HelloGesture, 
         ILYGesture,
-        WaitGesture // <--- "Wait" is now active
+        WaitGesture
     ]);
 
     loadModel();
@@ -102,7 +105,102 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
     return raw.map(v => v / maxAbs);
   };
 
+  // --- NEW: COMPASS DIRECTION HELPER ---
+  // Converts movement between two points into a generic direction
+  const getDirection = (start: {x: number, y: number}, end: {x: number, y: number}) => {
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    
+    // Deadzone: Ignore movements smaller than 0.04 (reduces jitter)
+    if (Math.abs(dx) < 0.02 && Math.abs(dy) < 0.04) return null;
+
+    // Calculate angle in degrees
+    let angle = Math.atan2(dy, dx) * (180 / Math.PI);
+    if (angle < 0) angle += 360;
+
+    // Map angle to Compass Directions
+    // Screen coordinates: Y increases downwards.
+    // 0 = Right, 90 = Down, 180 = Left, 270 = Up
+    if (angle >= 337.5 || angle < 22.5) return 'RIGHT';
+    if (angle >= 22.5 && angle < 67.5) return 'DOWN-RIGHT';
+    if (angle >= 67.5 && angle < 112.5) return 'DOWN';
+    if (angle >= 112.5 && angle < 157.5) return 'DOWN-LEFT';
+    if (angle >= 157.5 && angle < 202.5) return 'LEFT';
+    if (angle >= 202.5 && angle < 247.5) return 'UP-LEFT';
+    if (angle >= 247.5 && angle < 292.5) return 'UP';
+    if (angle >= 292.5 && angle < 337.5) return 'UP-RIGHT';
+    
+    return null;
+  };
+
+  // --- NEW: PATTERN MATCHER LOGIC ---
+  const detectDynamicGesture = (currentStaticSign: string): string => {
+    const history = movementHistory.current;
+    
+    // We need enough frames to detect a pattern
+    if (history.length < 5) return currentStaticSign;
+
+    // 1. Convert History -> Sequence of Directions
+    const directions: string[] = [];
+    
+    // Check every 3rd frame (sampling) to smooth out the path
+    for (let i = 0; i < history.length - 3; i += 2) {
+        const dir = getDirection(history[i], history[i + 2]);
+        // Only add if it's a new direction (remove duplicates)
+        if (dir && directions[directions.length - 1] !== dir) {
+            directions.push(dir);
+        }
+    }
+
+    // Uncomment this to see the path in your browser console!
+    // if (directions.length > 0) console.log("Path:", directions.join(" -> "));
+
+    // 2. CHECK FOR 'Z' (Zigzag)
+    // Valid starts: 'D' (Index Up), '1', 'P', or 'X'
+    if (['D', '1', 'P', 'X'].includes(currentStaticSign) || directions.length > 3) {
+        // Z Pattern: RIGHT -> DIAGONAL (Down-Left) -> RIGHT
+        const hasRightStart = directions.slice(0, 3).some(d => d === 'RIGHT' || d === 'DOWN-RIGHT');
+        const hasDiagMid = directions.some(d => d === 'DOWN-LEFT' || d === 'LEFT');
+        const hasRightEnd = directions.slice(-3).some(d => d === 'RIGHT');
+
+        // Check sequence order
+        if (hasRightStart && hasDiagMid && hasRightEnd) {
+             // Validate order indices
+             const firstRightIdx = directions.findIndex(d => d === 'RIGHT' || d === 'DOWN-RIGHT');
+             const diagIdx = directions.findIndex((d, i) => i > firstRightIdx && (d === 'DOWN-LEFT' || d === 'LEFT'));
+             const lastRightIdx = directions.findIndex((d, i) => i > diagIdx && d === 'RIGHT');
+
+             if (firstRightIdx !== -1 && diagIdx !== -1 && lastRightIdx !== -1) {
+                 return 'Z';
+             }
+        }
+    }
+
+    // 3. CHECK FOR 'J' (Hook)
+    // Valid starts: 'I', 'Y' (Pinky Up), or sometimes 'A'/'S' (Fist) if transitioning
+    if (['I', 'Y', 'A', 'S'].includes(currentStaticSign)) {
+        // J Pattern: DOWN -> LEFT (Curve) -> UP (Optional)
+        const hasDown = directions.some(d => d === 'DOWN' || d === 'DOWN-RIGHT');
+        const hasLeft = directions.some(d => d === 'LEFT' || d === 'DOWN-LEFT');
+        
+        if (hasDown && hasLeft) {
+            const downIdx = directions.findIndex(d => d === 'DOWN' || d === 'DOWN-RIGHT');
+            const leftIdx = directions.findIndex((d, i) => i > downIdx && (d === 'LEFT' || d === 'DOWN-LEFT'));
+            
+            // If we went down, then curved left immediately
+            if (downIdx !== -1 && leftIdx !== -1) {
+                return 'J';
+            }
+        }
+    }
+
+    return currentStaticSign;
+  };
+
   const applyManualCorrections = (prediction: string, handLandmarks: any[]): string => {
+    // ... (This function remains exactly the same as your original code)
+    // For brevity, I'm assuming you still have this logic.
+    // Copy the contents of your applyManualCorrections here if you deleted it.
     if (!handLandmarks || handLandmarks.length < 21) return prediction;
     const wrist = handLandmarks[0];
     const thumbTip = handLandmarks[4];
@@ -115,11 +213,8 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
     const yDist = Math.abs(indexTip.y - wrist.y);
     const isHorizontal = xDist > yDist;
 
-    // --- FIX FOR 'L' vs 'Wait' Conflict ---
-    // If alphabet model predicts 'L', check if thumb is actually extended
     if (prediction === 'L') {
         const thumbExtension = Math.abs(thumbTip.x - indexBase.x);
-        // If thumb is tucked, it's not a proper 'L'
         if (thumbExtension < 0.05) { 
             return lastPredictionRef.current === 'Wait' ? 'Wait' : prediction;
         }
@@ -133,30 +228,39 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
       if (isHorizontal && !isPointingDown) {
         const indexLen = Math.hypot(indexTip.x - wrist.x, indexTip.y - wrist.y);
         const middleLen = Math.hypot(middleTip.x - wrist.x, middleTip.y - wrist.y);
-        if (middleLen < (indexLen * 0.85)) {
-            return 'G';
-        } 
+        if (middleLen < (indexLen * 0.85)) return 'G';
         const minY = Math.min(indexTip.y, middleTip.y);
         const maxY = Math.max(indexTip.y, middleTip.y);
         const isThumbBetween = (thumbTip.y > minY) && (thumbTip.y < maxY);
-        if (isThumbBetween) return 'P'; 
-        else return 'H'; 
+        return isThumbBetween ? 'P' : 'H';
       }
     }
     return prediction;
   };
 
   const recognizeSign = async (landmarks: any[]): Promise<RecognitionResult | null> => {
+    // 1. Handle No Hands
     if (!landmarks || landmarks.length === 0) {
         lastPredictionRef.current = ''; 
+        movementHistory.current = []; // Reset history
         return null;
     }
 
-    // A. Fingerpose Word Detection
+    // 2. Track Index Finger (Tip)
+    const hand = landmarks[0]; 
+    const indexTip = hand[8]; 
+    
+    // Add to history
+    movementHistory.current.push({ x: indexTip.x, y: indexTip.y });
+    
+    // Keep last 30 frames (Increased from 20 to capture longer Z/J movements)
+    if (movementHistory.current.length > 30) {
+        movementHistory.current.shift();
+    }
+
+    // A. Fingerpose (Static Words)
     if (gestureEstimatorRef.current) {
-        const hand = landmarks[0]; 
         const fpLandmarks = hand.map((lm: any) => [lm.x, lm.y, lm.z]);
-        
         const gestureEst = await gestureEstimatorRef.current.estimate(fpLandmarks, 7.5);
 
         if (gestureEst.gestures.length > 0) {
@@ -171,7 +275,6 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
                 }, 2000); 
 
                 const confidence = bestGesture.score / 10;
-
                 return {
                     sign: bestGesture.name,
                     confidence: confidence,
@@ -203,7 +306,7 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
 
       const topPrediction = predictions[0];
 
-      // --- AUTO-CLEAR LOGIC ---
+      // Auto-clear low confidence
       if (topPrediction.confidence < confidenceThreshold) {
           lastPredictionRef.current = '';
           return {
@@ -218,7 +321,13 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
       if (topPrediction.sign === lastPredictionRef.current) return null;
 
       let detectedSign = topPrediction.sign;
+      
+      // 1. Apply Static Corrections
       detectedSign = applyManualCorrections(detectedSign, landmarks[0]);
+      
+      // 2. Apply Dynamic Corrections (Pattern Matching)
+      // Dito na pumapasok ang "Compass" logic natin
+      detectedSign = detectDynamicGesture(detectedSign);
       
       lastPredictionRef.current = detectedSign;
       
@@ -231,8 +340,9 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
         confidence: topPrediction.confidence,
         timestamp: Date.now(),
         allPredictions: predictions.slice(0, 5),
-        type: 'alphabet'
+        type: (detectedSign === 'J' || detectedSign === 'Z') ? 'dynamic' : 'alphabet'
       };
+
     } catch (err) {
       console.error('Error recognizing sign:', err);
       return null;
@@ -241,6 +351,7 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
 
   const resetLastPrediction = () => {
     lastPredictionRef.current = '';
+    movementHistory.current = [];
   };
 
   return {
