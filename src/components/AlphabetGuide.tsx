@@ -6,9 +6,13 @@ import { Badge } from '@/components/ui/badge';
 const AlphabetGuide = () => {
   const { settings } = useApp();
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+  
+  // UPDATED: Standardized phrase list
+  const commonPhrases = ['Hello', 'I love you', 'Wait a Minute'];
 
-  const getLetterDescription = (letter: string) => {
-    const aslDescriptions: Record<string, string> = {
+  const getSignDescription = (sign: string) => {
+    const descriptions: Record<string, string> = {
+      // Alphabet Descriptions
       A: 'Closed fist with thumb alongside',
       B: 'Flat hand, fingers together, thumb across palm',
       C: 'Curved hand forming C shape',
@@ -34,12 +38,15 @@ const AlphabetGuide = () => {
       W: 'Index, middle, ring up',
       X: 'Index finger bent, hook shape',
       Y: 'Thumb and pinky extended',
-      Z: 'Index finger traces Z in air'
+      Z: 'Index finger traces Z in air',
+      
+      // Phrase Descriptions
+      'Hello': 'Open palm starting at forehead and moving outward like a salute',
+      'I love you': 'Thumb, index, and pinky fingers extended simultaneously',
+      'Wait a Minute': 'Point your index finger straight up with palm facing outward and other fingers in a tight fist.'
     };
 
-    return settings.language === 'ASL' 
-      ? aslDescriptions[letter] 
-      : aslDescriptions[letter]; // FSL similar to ASL for alphabet
+    return descriptions[sign] || '';
   };
 
   const isStatic = (letter: string) => {
@@ -50,35 +57,58 @@ const AlphabetGuide = () => {
     <div className="h-full p-6">
       <div className="mb-6">
         <h2 className="text-2xl font-bold mb-2">
-          {settings.language} Alphabet Guide
+          {settings.language} Sign Guide
         </h2>
         <p className="text-muted-foreground">
-          Learn the hand positions for each letter. Static signs can be held, 
-          while J and Z require movement.
+          Learn the hand positions for each sign. Static signs can be held, 
+          while specific signs require movement.
         </p>
       </div>
 
       <ScrollArea className="h-[calc(100vh-200px)]">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {alphabet.map((letter) => (
-            <Card key={letter} className="hover:shadow-lg transition-shadow">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-3xl font-bold">{letter}</CardTitle>
-                  {!isStatic(letter) && (
-                    <Badge variant="secondary" className="text-xs">
-                      Motion
-                    </Badge>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <CardDescription className="text-sm leading-relaxed">
-                  {getLetterDescription(letter)}
-                </CardDescription>
-              </CardContent>
-            </Card>
-          ))}
+        {/* Common Phrases Section */}
+        <div className="mb-10">
+          <h3 className="text-xl font-semibold mb-4 text-primary">Common Phrases</h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {commonPhrases.map((phrase) => (
+              <Card key={phrase} className="border-primary/50 bg-primary/5 hover:shadow-lg transition-all">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-xl font-bold">{phrase}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <CardDescription className="text-sm leading-relaxed">
+                    {getSignDescription(phrase)}
+                  </CardDescription>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+
+        {/* Alphabet Section */}
+        <div>
+          <h3 className="text-xl font-semibold mb-4">Alphabet</h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {alphabet.map((letter) => (
+              <Card key={letter} className="hover:shadow-lg transition-shadow">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-3xl font-bold">{letter}</CardTitle>
+                    {!isStatic(letter) && (
+                      <Badge variant="secondary" className="text-xs">
+                        Motion
+                      </Badge>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <CardDescription className="text-sm leading-relaxed">
+                    {getSignDescription(letter)}
+                  </CardDescription>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
       </ScrollArea>
     </div>

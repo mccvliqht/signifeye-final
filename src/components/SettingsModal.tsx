@@ -32,7 +32,18 @@ const SettingsModal = ({ open, onOpenChange }: SettingsModalProps) => {
   const [tempSettings, setTempSettings] = useState(settings);
 
   const handleSave = () => {
+    // 1. Existing save logic
     updateSettings(tempSettings);
+    
+    // 2. CRITICAL FIX: "Wake Up" the Speech Engine
+    // If the user selects 'speech', we play a silent clip to unlock the 22 voices
+    if (tempSettings.outputMode === 'speech') {
+      const wakeUpUtterance = new SpeechSynthesisUtterance("");
+      wakeUpUtterance.volume = 0; // Silent
+      window.speechSynthesis.speak(wakeUpUtterance);
+      console.log("[SignifEye] Speech synthesis unlocked via user interaction.");
+    }
+
     onOpenChange(false);
     toast({
       title: 'Settings saved',

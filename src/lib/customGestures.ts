@@ -23,7 +23,7 @@ for (let finger of [
 }
 
 // --- 3. WAIT (Strict Thumb Version) ---
-export const WaitGesture = new fp.GestureDescription('Wait');
+export const WaitGesture = new fp.GestureDescription('Wait a minute');
 
 // Index finger: MUST be straight up
 WaitGesture.addCurl(fp.Finger.Index, fp.FingerCurl.NoCurl, 1.0);

@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import * as tf from '@tensorflow/tfjs';
 import * as fp from 'fingerpose'; 
 
-// --- 1. Corrected Imports: Removed NoGesture, Added WaitGesture ---
+// --- 1. Static Gesture Imports ---
 import { HelloGesture, ILYGesture, WaitGesture } from '@/lib/customGestures'; 
 import { loadTrainedModel, trainAndSaveModel } from '@/lib/modelTrainer';
 import { ALPHABET } from '@/lib/trainingData';
@@ -23,7 +23,7 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
   const gestureEstimatorRef = useRef<fp.GestureEstimator | null>(null);
   const confidenceThreshold = 0.50; 
 
-  // --- 2. Initialize Estimator with "Wait" ---
+  // --- 2. Initialize Fingerpose Estimator ---
   useEffect(() => {
     lastPredictionRef.current = '';
     setError(null);
@@ -31,7 +31,7 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
     gestureEstimatorRef.current = new fp.GestureEstimator([
         HelloGesture, 
         ILYGesture,
-        WaitGesture // <--- "Wait" is now active
+        WaitGesture
     ]);
 
     loadModel();
@@ -107,19 +107,17 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
     const wrist = handLandmarks[0];
     const thumbTip = handLandmarks[4];
     const indexTip = handLandmarks[8];
-    const middleTip = handLandmarks[12];
     const indexBase = handLandmarks[5];
+    const middleTip = handLandmarks[12];
 
     const isPointingDown = indexTip.y > wrist.y; 
     const xDist = Math.abs(indexTip.x - wrist.x);
     const yDist = Math.abs(indexTip.y - wrist.y);
     const isHorizontal = xDist > yDist;
 
-    // --- FIX FOR 'L' vs 'Wait' Conflict ---
-    // If alphabet model predicts 'L', check if thumb is actually extended
+    // --- FIX: 'L' vs 'Wait' ---
     if (prediction === 'L') {
         const thumbExtension = Math.abs(thumbTip.x - indexBase.x);
-        // If thumb is tucked, it's not a proper 'L'
         if (thumbExtension < 0.05) { 
             return lastPredictionRef.current === 'Wait' ? 'Wait' : prediction;
         }
@@ -147,12 +145,13 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
   };
 
   const recognizeSign = async (landmarks: any[]): Promise<RecognitionResult | null> => {
+    // 1. If hand leaves camera, clear the text and return null to prevent speech reset
     if (!landmarks || landmarks.length === 0) {
         lastPredictionRef.current = ''; 
         return null;
     }
 
-    // A. Fingerpose Word Detection
+    // A. Fingerpose Word Detection (Hello, ILY, Wait)
     if (gestureEstimatorRef.current) {
         const hand = landmarks[0]; 
         const fpLandmarks = hand.map((lm: any) => [lm.x, lm.y, lm.z]);
@@ -166,6 +165,7 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
                 if (bestGesture.name === lastPredictionRef.current) return null;
                 lastPredictionRef.current = bestGesture.name;
 
+                // Word cooldown for static words
                 setTimeout(() => {
                     if (lastPredictionRef.current === bestGesture.name) lastPredictionRef.current = '';
                 }, 2000); 
@@ -183,7 +183,7 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
         }
     }
 
-    // B. Alphabet Model (TFJS)
+    // B. Alphabet Model (TFJS) (A-Z)
     if (!modelRef.current) return null;
 
     try {
@@ -203,25 +203,20 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
 
       const topPrediction = predictions[0];
 
-      // --- AUTO-CLEAR LOGIC ---
+      // --- GLOBAL AUTO-CLEAR: Return null during low confidence ---
+      // This stops the Speech Hook from seeing a "change" and constantly resetting
       if (topPrediction.confidence < confidenceThreshold) {
           lastPredictionRef.current = '';
-          return {
-              sign: '',
-              confidence: 0,
-              timestamp: Date.now(),
-              allPredictions: [],
-              type: 'alphabet'
-          };
+          return null; 
       }
-
-      if (topPrediction.sign === lastPredictionRef.current) return null;
 
       let detectedSign = topPrediction.sign;
       detectedSign = applyManualCorrections(detectedSign, landmarks[0]);
-      
+
+      if (detectedSign === lastPredictionRef.current) return null;
       lastPredictionRef.current = detectedSign;
       
+      // Alphabet cooldown
       setTimeout(() => {
         if (lastPredictionRef.current === detectedSign) lastPredictionRef.current = '';
       }, 1500);

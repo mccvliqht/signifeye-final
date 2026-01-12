@@ -5,16 +5,17 @@ export const useSpeechSynthesis = () => {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const lastSpokenTextRef = useRef<string>('');
   const synthRef = useRef<SpeechSynthesis | null>(null);
+  
+  // Ref to prevent the browser from deleting the speech object mid-sentence
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       const synth = window.speechSynthesis;
       synthRef.current = synth;
       setIsSupported(true);
-      // Preload voices; some browsers require touching getVoices()
-      const loadVoices = () => {
-        synth.getVoices();
-      };
+
+      const loadVoices = () => { synth.getVoices(); };
       if (typeof synth.onvoiceschanged !== 'undefined') {
         synth.onvoiceschanged = loadVoices;
       }
@@ -22,49 +23,56 @@ export const useSpeechSynthesis = () => {
     }
   }, []);
 
-  const speak = (text: string, opts?: { lang?: string; voice?: string }) => {
-    if (!isSupported || !synthRef.current || !text) return;
+  const speak = (text: string) => {
+    if (!isSupported || !synthRef.current || !text || text.trim() === '') return;
 
-    // Only speak if the text is different from what was last spoken
+    // 1. Prevent Spamming (Matches your sample project logic)
     if (text === lastSpokenTextRef.current) return;
 
     const synth = synthRef.current;
 
-    // Try to resume if paused (iOS/Safari quirks)
+    // 2. Hardware Resume (Fixes Chrome/Safari silence)
     try {
       if (synth.paused) synth.resume();
     } catch {}
 
-    // Cancel any ongoing speech
+    // 3. Immediate Cancel
     synth.cancel();
 
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.95;
-    utterance.pitch = 1;
-    utterance.volume = 1;
+    // 4. The "Safety Gap" for Alphabet Speed
+    // This 100ms gap ensures the hardware is ready to switch from 'A' to 'B'.
+    setTimeout(() => {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utteranceRef.current = utterance;
 
-    if (opts?.lang) utterance.lang = opts.lang;
+      // Select an English voice from your 22 loaded voices
+      const voices = synth.getVoices();
+      utterance.voice = voices.find(v => v.lang.startsWith('en')) || voices[0];
 
-    if (opts?.voice) {
-      const v = synth.getVoices().find((vv) => vv.name === opts.voice || vv.lang === opts.voice);
-      if (v) utterance.voice = v;
-    }
+      utterance.rate = 1.1; // Balanced for both full words and fast letters
+      utterance.pitch = 1;
+      utterance.volume = 1;
 
-    utterance.onstart = () => {
-      setIsSpeaking(true);
-      lastSpokenTextRef.current = text;
-    };
+      utterance.onstart = () => {
+        setIsSpeaking(true);
+        lastSpokenTextRef.current = text;
+        console.log(`[SignifEye] Speaking: ${text}`);
+      };
 
-    utterance.onend = () => {
-      setIsSpeaking(false);
-    };
+      utterance.onend = () => {
+        setIsSpeaking(false);
+        // Do NOT clear lastSpokenText here; let the recognition hook 
+        // handle the 1.5s timeout instead.
+      };
 
-    utterance.onerror = (event) => {
-      console.error('Speech synthesis error:', event);
-      setIsSpeaking(false);
-    };
+      utterance.onerror = (event) => {
+        console.error('Speech error:', event);
+        setIsSpeaking(false);
+        lastSpokenTextRef.current = ''; 
+      };
 
-    synth.speak(utterance);
+      synth.speak(utterance);
+    }, 100); 
   };
 
   const cancel = () => {
@@ -79,11 +87,5 @@ export const useSpeechSynthesis = () => {
     cancel();
   };
 
-  return {
-    isSupported,
-    isSpeaking,
-    speak,
-    cancel,
-    reset
-  };
+  return { isSupported, isSpeaking, speak, cancel, reset };
 };
