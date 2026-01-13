@@ -25,26 +25,38 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+// Define a key for localStorage to keep it organized
+const STORAGE_KEY = 'signifeye-app-settings';
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [settings, setSettings] = useState<AppSettings>({
-    language: 'ASL',
-    outputMode: 'text',
-    theme: 'dark',
-    fontSize: 16,
+  // 1. Initialize state by checking localStorage first
+  const [settings, setSettings] = useState<AppSettings>(() => {
+    const savedSettings = localStorage.getItem(STORAGE_KEY);
+    return savedSettings ? JSON.parse(savedSettings) : {
+      language: 'ASL',
+      outputMode: 'text',
+      theme: 'dark',
+      fontSize: 16,
+    };
   });
 
   const [isRecognizing, setIsRecognizing] = useState(false);
   const [outputText, setOutputText] = useState('');
   const [mirrorCamera, setMirrorCamera] = useState(true);
 
+  // 2. Automatically save settings whenever they change
   useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    
     // Apply theme to document
     if (settings.theme === 'dark') {
       document.documentElement.classList.add('dark');
+      document.documentElement.classList.remove('light');
     } else {
+      document.documentElement.classList.add('light');
       document.documentElement.classList.remove('dark');
     }
-  }, [settings.theme]);
+  }, [settings]);
 
   const updateSettings = (newSettings: Partial<AppSettings>) => {
     setSettings((prev) => ({ ...prev, ...newSettings }));

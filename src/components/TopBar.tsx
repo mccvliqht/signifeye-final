@@ -1,4 +1,5 @@
-import { Settings, BookOpen, Target, Database } from 'lucide-react';
+// src/components/TopBar.tsx
+import { Settings, BookOpen, Target, Eye, Info } from 'lucide-react'; // Added Eye and Info
 import { Button } from '@/components/ui/button';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -12,10 +13,12 @@ const TopBar = ({ onSettingsClick }: TopBarProps) => {
   const location = useLocation();
 
   const navItems = [
-    { path: '/', label: 'Recognize', icon: null },
+    { path: '/', label: 'Recognize', icon: Eye },
     { path: '/guide', label: 'Guide', icon: BookOpen },
     { path: '/practice', label: 'Practice', icon: Target },
-    { path: '/dataset', label: 'Dataset', icon: Database },
+    { path: '/about', label: 'About', icon: Info }, // New About Tab
+    
+    /* { path: '/dataset', label: 'Dataset', icon: Database }, */ // Hidden but preserved
   ];
 
   return (

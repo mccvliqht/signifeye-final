@@ -7,7 +7,6 @@ const AlphabetGuide = () => {
   const { settings } = useApp();
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
   
-  // UPDATED: Standardized phrase list
   const commonPhrases = ['Hello', 'I love you', 'Wait a Minute'];
 
   const getSignDescription = (sign: string) => {
@@ -56,7 +55,7 @@ const AlphabetGuide = () => {
   return (
     <div className="h-full p-6">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold mb-2">
+        <h2 className="text-2xl font-bold mb-2 text-white">
           {settings.language} Sign Guide
         </h2>
         <p className="text-muted-foreground">
@@ -66,14 +65,14 @@ const AlphabetGuide = () => {
       </div>
 
       <ScrollArea className="h-[calc(100vh-200px)]">
-        {/* Common Phrases Section */}
+        {/* Common Phrases Section: Now standardized with Alphabet style */}
         <div className="mb-10">
-          <h3 className="text-xl font-semibold mb-4 text-primary">Common Phrases</h3>
+          <h3 className="text-xl font-semibold mb-4">Common Phrases</h3>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {commonPhrases.map((phrase) => (
-              <Card key={phrase} className="border-primary/50 bg-primary/5 hover:shadow-lg transition-all">
+              <Card key={phrase} className="hover:shadow-lg transition-shadow">
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-xl font-bold">{phrase}</CardTitle>
+                  <CardTitle className="text-xl font-bold text-white">{phrase}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <CardDescription className="text-sm leading-relaxed">
@@ -93,7 +92,7 @@ const AlphabetGuide = () => {
               <Card key={letter} className="hover:shadow-lg transition-shadow">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-3xl font-bold">{letter}</CardTitle>
+                    <CardTitle className="text-3xl font-bold text-white">{letter}</CardTitle>
                     {!isStatic(letter) && (
                       <Badge variant="secondary" className="text-xs">
                         Motion
