@@ -1,5 +1,5 @@
-// src/components/TopBar.tsx
-import { Settings, BookOpen, Target, Eye, Info } from 'lucide-react'; // Added Eye and Info
+import { useState, useEffect } from 'react';
+import { Settings, BookOpen, Target, Eye, Info, Download } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -11,14 +11,44 @@ interface TopBarProps {
 const TopBar = ({ onSettingsClick }: TopBarProps) => {
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // 🛠️ PWA Installation Logic
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      // Prevent the mini-infobar from appearing on mobile
+      e.preventDefault();
+      // Stash the event so it can be triggered later
+      setInstallPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!installPrompt) return;
+    
+    // Show the native install prompt
+    installPrompt.prompt();
+    
+    // Wait for the user to respond to the prompt
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === 'accepted') {
+      console.log('User accepted the install prompt');
+      setInstallPrompt(null); // Hide the button after installation
+    }
+  };
 
   const navItems = [
     { path: '/', label: 'Recognize', icon: Eye },
     { path: '/guide', label: 'Guide', icon: BookOpen },
     { path: '/practice', label: 'Practice', icon: Target },
-    { path: '/about', label: 'About', icon: Info }, // New About Tab
-    
-    /* { path: '/dataset', label: 'Dataset', icon: Database }, */ // Hidden but preserved
+    { path: '/about', label: 'About', icon: Info },
   ];
 
   return (
@@ -54,15 +84,30 @@ const TopBar = ({ onSettingsClick }: TopBarProps) => {
         </nav>
       </div>
       
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={onSettingsClick}
-        className="hover:bg-secondary"
-        aria-label="Open settings"
-      >
-        <Settings className="h-5 w-5" />
-      </Button>
+      <div className="flex items-center gap-2">
+        {/* 🛠️ Install Button - Only shows if app is installable */}
+        {installPrompt && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleInstallClick}
+            className="gap-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+          >
+            <Download className="w-4 h-4" />
+            Install App
+          </Button>
+        )}
+
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onSettingsClick}
+          className="hover:bg-secondary"
+          aria-label="Open settings"
+        >
+          <Settings className="h-5 w-5" />
+        </Button>
+      </div>
     </header>
   );
 };
