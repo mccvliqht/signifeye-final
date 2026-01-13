@@ -127,36 +127,73 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
 
   const detectDynamicGesture = (currentStaticSign: string): string => {
     const history = movementHistory.current;
-    if (history.length < 5) return currentStaticSign;
+    
+    // Rule 1: Kapag kaunti pa lang ang history, wag muna mag-assume.
+    if (history.length < 8) return currentStaticSign;
 
-    const directions: string[] = [];
-    for (let i = 0; i < history.length - 3; i += 2) {
-        const dir = getDirection(history[i], history[i + 2]);
-        if (dir && directions[directions.length - 1] !== dir) directions.push(dir);
-    }
+    // --- LOGIC FOR 'Z' (Zigzag) ⚡ ---
+    // Gatekeeper: Dapat naka-Letter D ka muna bago mag-Z.
+    if (['D', 'Wait a minute'].includes(currentStaticSign)) {
+        
+        // Calculate Total Distance (Para iwas sa nanginginig na kamay)
+        const start = history[0];
+        const end = history[history.length - 1];
+        const totalDistX = Math.abs(end.x - start.x);
+        
+        // Rule 2: Dapat gumalaw ang kamay ng at least 5% ng screen width
+        if (totalDistX > 0.07) { 
+            const directions: string[] = [];
+            for (let i = 0; i < history.length - 2; i += 2) {
+                const dir = getDirection(history[i], history[i + 2]);
+                if (dir && directions[directions.length - 1] !== dir) {
+                    directions.push(dir);
+                }
+            }
 
-    if (['D', '1', 'P', 'X'].includes(currentStaticSign) || directions.length > 3) {
-        const hasRightStart = directions.slice(0, 3).some(d => d === 'RIGHT' || d === 'DOWN-RIGHT');
-        const hasDiagMid = directions.some(d => d === 'DOWN-LEFT' || d === 'LEFT');
-        const hasRightEnd = directions.slice(-3).some(d => d === 'RIGHT');
+            // Z Pattern: Right -> Down-Left -> Right
+            const hasRightStart = directions.slice(0, 4).some(d => d === 'RIGHT' || d === 'DOWN-RIGHT');
+            const hasDiagMid = directions.some(d => d === 'DOWN-LEFT' || d === 'LEFT');
+            const hasRightEnd = directions.slice(-4).some(d => d === 'RIGHT');
 
-        if (hasRightStart && hasDiagMid && hasRightEnd) {
-             const fRIdx = directions.findIndex(d => d === 'RIGHT' || d === 'DOWN-RIGHT');
-             const dIdx = directions.findIndex((d, i) => i > fRIdx && (d === 'DOWN-LEFT' || d === 'LEFT'));
-             const lRIdx = directions.findIndex((d, i) => i > dIdx && d === 'RIGHT');
-             if (fRIdx !== -1 && dIdx !== -1 && lRIdx !== -1) return 'Z';
+            if (hasRightStart && hasDiagMid && hasRightEnd) {
+                 return 'Z';
+            }
         }
     }
 
-    if (['I', 'Y', 'A', 'S'].includes(currentStaticSign)) {
-        const hasDown = directions.some(d => d === 'DOWN' || d === 'DOWN-RIGHT');
-        const hasLeft = directions.some(d => d === 'LEFT' || d === 'DOWN-LEFT');
-        if (hasDown && hasLeft) {
-            const dIdx = directions.findIndex(d => d === 'DOWN' || d === 'DOWN-RIGHT');
-            const lIdx = directions.findIndex((d, i) => i > dIdx && (d === 'LEFT' || d === 'DOWN-LEFT'));
-            if (dIdx !== -1 && lIdx !== -1) return 'J';
+    // --- LOGIC FOR 'J' (Scoop) 🪝 ---
+    // Gatekeeper: Dapat naka-Letter I ka muna bago mag-J.
+    if (['I'].includes(currentStaticSign)) {
+        
+        const start = history[0];
+        const end = history[history.length - 1];
+        const totalDistY = end.y - start.y; // Positive means DOWN
+
+        // Rule 2: Dapat bumaba ang kamay ng significant distance
+        if (totalDistY > 0.07) {
+            const directions: string[] = [];
+            for (let i = 0; i < history.length - 2; i += 2) {
+                const dir = getDirection(history[i], history[i + 2]);
+                if (dir && directions[directions.length - 1] !== dir) {
+                    directions.push(dir);
+                }
+            }
+
+            // J Pattern: Down -> Curve Left/Up
+            const hasDown = directions.some(d => d === 'DOWN' || d === 'DOWN-RIGHT');
+            const hasCurve = directions.some(d => d === 'LEFT' || d === 'DOWN-LEFT' || d === 'UP-LEFT');
+            
+            // Check sequence: Down muna, bago nag-Curve
+            const downIdx = directions.findIndex(d => d === 'DOWN' || d === 'DOWN-RIGHT');
+            const curveIdx = directions.findIndex((d, i) => i > downIdx && (d === 'LEFT' || d === 'DOWN-LEFT'));
+            
+            if (hasDown && hasCurve && downIdx !== -1 && curveIdx !== -1) {
+                return 'J';
+            }
         }
     }
+
+    // Kung walang motion na match, ibalik lang kung ano yung Static sign (example: "D" or "I")
     return currentStaticSign;
   };
 
@@ -180,7 +217,7 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
         }
     }
 
-    if (['S', 'Z', 'D', 'H'].includes(prediction)) { 
+    if (['S', 'D', 'H'].includes(prediction)) { 
       if (isPointingDown) return 'P'; 
     }
 
@@ -199,6 +236,7 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
   };
 
   const recognizeSign = async (landmarks: any[]): Promise<RecognitionResult | null> => {
+    // 1. Safety Check: Kung walang kamay, clear history
     if (!landmarks || landmarks.length === 0) {
         lastPredictionRef.current = ''; 
         movementHistory.current = [];
@@ -207,18 +245,24 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
 
     const hand = landmarks[0]; 
     const indexTip = hand[8]; 
+    
+    // 2. Track Movement (Push new coordinates)
     movementHistory.current.push({ x: indexTip.x, y: indexTip.y });
+    // Keep only last 20-30 frames
     if (movementHistory.current.length > 30) movementHistory.current.shift();
 
-    // A. Fingerpose Word Detection (Hello, ILY, Wait a Minute)
+    // A. Fingerpose Word Detection (Static Words like Hello, ILY)
     if (gestureEstimatorRef.current) {
         const fpLandmarks = hand.map((lm: any) => [lm.x, lm.y, lm.z]);
         const gestureEst = await gestureEstimatorRef.current.estimate(fpLandmarks, 7.5);
+        
         if (gestureEst.gestures.length > 0) {
             const bestGesture = gestureEst.gestures.reduce((p, c) => (p.score > c.score ? p : c));
+            
             if (bestGesture.score > 8.5) { 
-                // --- 2. CHANGE: Translate Static Gestures if FSL ---
                 let finalSign = bestGesture.name;
+                
+                // [FSL TRANSLATION]
                 if (language === 'FSL') {
                     finalSign = translateToFSL(finalSign);
                 }
@@ -239,6 +283,7 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
     try {
       const features = preprocessLandmarks(landmarks);
       if (features.length !== 63) return null;
+      
       const inputTensor = tf.tensor2d([features], [1, 63]);
       const prediction = modelRef.current.predict(inputTensor) as tf.Tensor;
       const probabilities = await prediction.data();
@@ -254,11 +299,14 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
       }
 
       let detectedSign = topPrediction.sign;
+      
+      // 1. Manual Corrections (e.g., L vs Wait)
       detectedSign = applyManualCorrections(detectedSign, landmarks[0]);
+      
+      // 2. Dynamic Detection (J & Z) - Ito yung inupdate natin sa Part 1
       detectedSign = detectDynamicGesture(detectedSign);
 
-      // --- 3. CHANGE: Translate Alphabet/Dynamic Gestures if FSL ---
-      // This handles letters and things like "J" or "Z"
+      // 3. [FSL TRANSLATION] for Alphabet/Dynamic
       if (language === 'FSL') {
           detectedSign = translateToFSL(detectedSign);
       }
