@@ -9,7 +9,6 @@ const Index = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   return (
-    <AppProvider>
       <div className="h-screen flex flex-col overflow-hidden">
         <TopBar onSettingsClick={() => setSettingsOpen(true)} />
         
@@ -25,7 +24,7 @@ const Index = () => {
 
         <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
       </div>
-    </AppProvider>
+
   );
 };
 

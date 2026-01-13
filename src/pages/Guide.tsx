@@ -8,7 +8,6 @@ const Guide = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   return (
-    <AppProvider>
       <div className="min-h-screen flex flex-col bg-background">
         <TopBar onSettingsClick={() => setSettingsOpen(true)} />
         <main className="flex-1">
@@ -16,7 +15,6 @@ const Guide = () => {
         </main>
         <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
       </div>
-    </AppProvider>
   );
 };
 

@@ -8,7 +8,6 @@ const About = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   return (
-    <AppProvider>
       <div className="min-h-screen flex flex-col bg-background text-foreground">
         {/* TopBar will now show up because onSettingsClick is provided */}
         <TopBar onSettingsClick={() => setSettingsOpen(true)} />
@@ -20,7 +19,6 @@ const About = () => {
 
         <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
       </div>
-    </AppProvider>
   );
 };
 
