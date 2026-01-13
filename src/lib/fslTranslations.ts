@@ -29,7 +29,7 @@ export const fslToFilipino: Record<string, string> = {
   'Z': 'Z',
   
   // Common phrases
-  'Hello': 'Kamusta',
+  'Hello': 'Kumusta',
   'Thank you': 'Salamat',
   'Yes': 'Oo',
   'No': 'Hindi',
@@ -85,4 +85,9 @@ export const fslToFilipino: Record<string, string> = {
   'Yesterday': 'Kahapon',
   'Morning': 'Umaga',
   'Night': 'Gabi',
+};
+
+export const translateToFSL = (englishSign: string): string => {
+  // Check if translation exists, otherwise return original
+  return fslToFilipino[englishSign] || englishSign;
 };

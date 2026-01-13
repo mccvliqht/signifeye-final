@@ -33,7 +33,9 @@ const CameraView = () => {
   const streamRef = useRef<MediaStream | null>(null);
   
   const { detectHands, drawLandmarks, isLoading: mediaPipeLoading, error: mediaPipeError } = useMediaPipe();
+  // Pass the language to the model loader
   const { recognizeSign, isLoading: modelLoading, error: modelError, resetLastPrediction } = useSignRecognition(settings.language);
+  
   const { speak, reset: resetSpeech, isSupported: speechSupported } = useSpeechSynthesis();
   
   const [currentConfidence, setCurrentConfidence] = useState<number | null>(null);
@@ -112,10 +114,13 @@ const CameraView = () => {
     if (allPredictions) setTopPredictions(allPredictions);
     if (!sign || sign === '') return;
 
-    // 🔊 UPDATED: Use settingsRef.current instead of settings
-    // This ensures that when you toggle 'speech' in SettingsModal, it works IMMEDIATELY
+    // 🔊 UPDATED: This is where the magic happens!
     if (settingsRef.current.outputMode === 'speech' && speechSupported && confidence >= 0.6) {
-      speak(sign);
+      
+      // FIX: Ipasa ang 'settingsRef.current.language' bilang second parameter
+      // Dito niya malalaman kung dapat ba siyang mag-Tagalog (FSL) o English (ASL)
+      speak(sign, settingsRef.current.language);
+      
     }
 
     predictionsBufferRef.current.push({ sign, confidence, t: now });

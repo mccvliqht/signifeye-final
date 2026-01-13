@@ -2,7 +2,9 @@ import { useEffect, useState, useRef } from 'react';
 import * as tf from '@tensorflow/tfjs';
 import * as fp from 'fingerpose'; 
 
-// --- 1. Static Gesture Imports ---
+// --- 1. CHANGE: Import the helper function, NOT just the object ---
+import { translateToFSL } from '@/lib/fslTranslations';
+
 import { HelloGesture, ILYGesture, WaitGesture } from '@/lib/customGestures'; 
 import { loadTrainedModel, trainAndSaveModel } from '@/lib/modelTrainer';
 import { ALPHABET } from '@/lib/trainingData';
@@ -21,12 +23,10 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
   const lastPredictionRef = useRef<string>('');
   const modelRef = useRef<tf.LayersModel | null>(null);
   const gestureEstimatorRef = useRef<fp.GestureEstimator | null>(null);
-  const confidenceThreshold = 0.50; // Balanced for speed/accuracy
+  const confidenceThreshold = 0.50; 
 
-  // --- MOTION TRACKER (Added for J & Z) ---
   const movementHistory = useRef<{x: number, y: number}[]>([]);
 
-  // --- 2. Initialize Fingerpose Estimator ---
   useEffect(() => {
     lastPredictionRef.current = '';
     setError(null);
@@ -55,7 +55,8 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
 
       let model: tf.LayersModel | null = null;
 
-      if (language === 'ASL') {
+      // Note: We use the ASL model for both ASL and FSL since the hand shapes are mostly the same
+      if (language === 'ASL' || language === 'FSL') {
         try {
             const loadPromise = tf.loadLayersModel('/models/asl/model.json');
             const timeoutPromise = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 30000));
@@ -92,7 +93,6 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
     const raw: number[] = [];
     for (let i = 0; i < 21; i++) {
       const lm = handLandmarks[i];
-      // Note: If you want to fix Left-Hand accuracy, change (lm.x - wrist.x) to a flipped value here
       raw.push(lm.x - wrist.x);
       raw.push(lm.y - wrist.y);
       raw.push(lm.z - wrist.z);
@@ -106,7 +106,6 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
     return raw.map(v => v / maxAbs);
   };
 
-  // --- MOTION HELPERS ---
   const getDirection = (start: {x: number, y: number}, end: {x: number, y: number}) => {
     const dx = end.x - start.x;
     const dy = end.y - start.y;
@@ -136,7 +135,6 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
         if (dir && directions[directions.length - 1] !== dir) directions.push(dir);
     }
 
-    // Z Pattern logic
     if (['D', '1', 'P', 'X'].includes(currentStaticSign) || directions.length > 3) {
         const hasRightStart = directions.slice(0, 3).some(d => d === 'RIGHT' || d === 'DOWN-RIGHT');
         const hasDiagMid = directions.some(d => d === 'DOWN-LEFT' || d === 'LEFT');
@@ -150,7 +148,6 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
         }
     }
 
-    // J Pattern logic
     if (['I', 'Y', 'A', 'S'].includes(currentStaticSign)) {
         const hasDown = directions.some(d => d === 'DOWN' || d === 'DOWN-RIGHT');
         const hasLeft = directions.some(d => d === 'LEFT' || d === 'DOWN-LEFT');
@@ -176,7 +173,6 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
     const yDist = Math.abs(indexTip.y - wrist.y);
     const isHorizontal = xDist > yDist;
 
-    // --- KEEPING OUR PROGRESS: 'L' vs 'Wait a Minute' ---
     if (prediction === 'L') {
         const thumbExtension = Math.abs(thumbTip.x - indexBase.x);
         if (thumbExtension < 0.05) { 
@@ -203,11 +199,10 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
   };
 
   const recognizeSign = async (landmarks: any[]): Promise<RecognitionResult | null> => {
-    // 1. If hand leaves camera, clear the text and history
     if (!landmarks || landmarks.length === 0) {
         lastPredictionRef.current = ''; 
         movementHistory.current = [];
-        return { sign: '', confidence: 0, timestamp: Date.now(), allPredictions: [] }; // Keep UI active
+        return { sign: '', confidence: 0, timestamp: Date.now(), allPredictions: [] };
     }
 
     const hand = landmarks[0]; 
@@ -222,12 +217,19 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
         if (gestureEst.gestures.length > 0) {
             const bestGesture = gestureEst.gestures.reduce((p, c) => (p.score > c.score ? p : c));
             if (bestGesture.score > 8.5) { 
-                if (bestGesture.name === lastPredictionRef.current) {
-                  return { sign: bestGesture.name, confidence: bestGesture.score/10, timestamp: Date.now(), allPredictions: [] };
+                // --- 2. CHANGE: Translate Static Gestures if FSL ---
+                let finalSign = bestGesture.name;
+                if (language === 'FSL') {
+                    finalSign = translateToFSL(finalSign);
                 }
-                lastPredictionRef.current = bestGesture.name;
-                setTimeout(() => { if (lastPredictionRef.current === bestGesture.name) lastPredictionRef.current = ''; }, 2000); 
-                return { sign: bestGesture.name, confidence: bestGesture.score/10, timestamp: Date.now(), type: 'static' };
+
+                if (finalSign === lastPredictionRef.current) {
+                  return { sign: finalSign, confidence: bestGesture.score/10, timestamp: Date.now(), allPredictions: [] };
+                }
+                lastPredictionRef.current = finalSign;
+                setTimeout(() => { if (lastPredictionRef.current === finalSign) lastPredictionRef.current = ''; }, 2000); 
+                
+                return { sign: finalSign, confidence: bestGesture.score/10, timestamp: Date.now(), type: 'static' };
             }
         }
     }
@@ -246,7 +248,6 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
       const predictions = probsArr.map((prob, idx) => ({ sign: ALPHABET[idx], confidence: prob })).sort((a, b) => b.confidence - a.confidence);
       const topPrediction = predictions[0];
 
-      // Keep UI predictions even on low confidence
       if (topPrediction.confidence < confidenceThreshold) {
           lastPredictionRef.current = '';
           return { sign: '', confidence: 0, timestamp: Date.now(), allPredictions: predictions.slice(0, 5) };
@@ -254,9 +255,13 @@ export const useSignRecognition = (language: 'ASL' | 'FSL') => {
 
       let detectedSign = topPrediction.sign;
       detectedSign = applyManualCorrections(detectedSign, landmarks[0]);
-      
-      // APPLY MOTION TRACKING FOR J & Z
       detectedSign = detectDynamicGesture(detectedSign);
+
+      // --- 3. CHANGE: Translate Alphabet/Dynamic Gestures if FSL ---
+      // This handles letters and things like "J" or "Z"
+      if (language === 'FSL') {
+          detectedSign = translateToFSL(detectedSign);
+      }
 
       if (detectedSign === lastPredictionRef.current) {
         return { sign: detectedSign, confidence: topPrediction.confidence, timestamp: Date.now(), allPredictions: predictions.slice(0, 5) };
