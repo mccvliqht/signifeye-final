@@ -21,15 +21,16 @@ interface AppContextType {
   clearOutput: () => void;
   mirrorCamera: boolean;
   toggleMirrorCamera: () => void;
+  // 🛠️ Added for persistent PWA installation
+  installPrompt: any;
+  setInstallPrompt: (value: any) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-// Define a key for localStorage to keep it organized
 const STORAGE_KEY = 'signifeye-app-settings';
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // 1. Initialize state by checking localStorage first
   const [settings, setSettings] = useState<AppSettings>(() => {
     const savedSettings = localStorage.getItem(STORAGE_KEY);
     return savedSettings ? JSON.parse(savedSettings) : {
@@ -43,12 +44,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isRecognizing, setIsRecognizing] = useState(false);
   const [outputText, setOutputText] = useState('');
   const [mirrorCamera, setMirrorCamera] = useState(true);
+  
+  // 🛠️ Global state for the installation prompt
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
 
-  // 2. Automatically save settings whenever they change
+  // 🛠️ Persistent listener for PWA installation
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault(); // Stop the default mini-infobar
+      setInstallPrompt(e); // Store event globally so it survives tab switches
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+  }, []);
+
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
     
-    // Apply theme to document
     if (settings.theme === 'dark') {
       document.documentElement.classList.add('dark');
       document.documentElement.classList.remove('light');
@@ -82,6 +95,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         clearOutput,
         mirrorCamera,
         toggleMirrorCamera,
+        installPrompt,    // 🛠️ Expose to App
+        setInstallPrompt, // 🛠️ Expose to App
       }}
     >
       {children}
