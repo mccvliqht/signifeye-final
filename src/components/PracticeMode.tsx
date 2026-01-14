@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { RefreshCw, CheckCircle2, XCircle, Timer } from 'lucide-react';
+import { RefreshCw, CheckCircle2, XCircle, Timer, RotateCcw } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
 import { ALPHABET } from '@/lib/trainingData';
 
@@ -14,25 +14,27 @@ const PracticeMode = () => {
   const [correct, setCorrect] = useState(0);
   const [feedback, setFeedback] = useState<'correct' | 'incorrect' | null>(null);
   
-  // 🕒 NEW: Logic for "Thinking Time"
   const [isProcessing, setIsProcessing] = useState(false);
   const feedbackTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const phrases = ['Hello', 'I love you', 'Wait a Minute'];
-
+  // 1. Initial Load
   useEffect(() => {
     generateNewSign();
+    return () => {
+      if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current);
+    };
   }, []);
 
+  // 2. Recognition Logic
   useEffect(() => {
-    // If we are already showing "Correct" or "Incorrect", or if there's no text, don't do anything.
     if (!outputText || isProcessing || feedback) return;
     
-    const currentOutput = outputText.trim();
+    const currentOutput = outputText.trim().toUpperCase(); 
+    const target = targetSign.toUpperCase();
     
-    // ✅ CHECK FOR CORRECT SIGN
-    if (currentOutput.toLowerCase() === targetSign.toLowerCase()) {
-      setIsProcessing(true); // Lock the UI so it doesn't flicker
+    // ✅ CORRECT MATCH
+    if (currentOutput.includes(target)) {
+      setIsProcessing(true);
       setFeedback('correct');
       setCorrect(prev => prev + 1);
       setAttempts(prev => prev + 1);
@@ -42,20 +44,17 @@ const PracticeMode = () => {
         generateNewSign();
         setFeedback(null);
         setIsProcessing(false);
-      }, 2000); // Increased wait time to 2 seconds
+      }, 2000); 
       return;
     }
 
-    // ❌ SLOWER INCORRECT LOGIC
-    // We only trigger "Incorrect" if the text is long enough AND the user hasn't 
-    // corrected it within a "Grace Period".
-    if (currentOutput.length >= targetSign.length) {
+    // ❌ INCORRECT LOGIC (with Grace Period)
+    if (currentOutput.length >= target.length) {
       setIsProcessing(true);
       
-      // Give the user 1.5 seconds of "Grace" to fix their hand before showing the Red X.
       feedbackTimeoutRef.current = setTimeout(() => {
-        // Double check: is it still wrong after 1.5 seconds?
-        if (outputText.trim().toLowerCase() !== targetSign.toLowerCase()) {
+        const finalCheck = outputText.trim().toUpperCase();
+        if (!finalCheck.includes(target)) {
           setFeedback('incorrect');
           setAttempts(prev => prev + 1);
           
@@ -65,18 +64,27 @@ const PracticeMode = () => {
             setIsProcessing(false);
           }, 1500);
         } else {
-          // They fixed it in time! Don't mark as incorrect.
-          setIsProcessing(false);
+          setIsProcessing(false); 
         }
       }, 1500); 
     }
   }, [outputText, targetSign, clearOutput, isProcessing, feedback]);
 
+  // 3. Alphabet-only sign generation
   const generateNewSign = () => {
     if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current);
-    const staticLetters = ALPHABET.filter(l => !['J', 'Z'].includes(l));
-    const practicePool = [...staticLetters, ...phrases];
-    const randomSign = practicePool[Math.floor(Math.random() * practicePool.length)];
+    
+    // 🛠️ UPDATED FILTER: Excluded J, Z (moving signs) and P, G, T (complex landmarks)
+    const difficultLetters = ['J', 'Z', 'P', 'G', 'T'];
+    
+    const filteredAlphabet = ALPHABET.filter(letter => 
+      !difficultLetters.includes(letter.toUpperCase())
+    );
+    
+    // Pick a random letter that isn't the same as the current one
+    const availableLetters = filteredAlphabet.filter(l => l !== targetSign);
+    const randomSign = availableLetters[Math.floor(Math.random() * availableLetters.length)];
+    
     setTargetSign(randomSign);
   };
 
@@ -96,65 +104,63 @@ const PracticeMode = () => {
     <div className="flex flex-col h-full p-6 gap-6">
       <div className="flex justify-between items-start">
         <div>
-          <h2 className="text-2xl font-bold mb-2">Practice Mode</h2>
-          <p className="text-muted-foreground">Sign the target below. Take your time!</p>
+          <h2 className="text-2xl font-bold mb-2 text-white">Alphabet Practice</h2>
+          <p className="text-muted-foreground">Sign the letter below to test your accuracy.</p>
         </div>
         {isProcessing && !feedback && (
-          <Badge variant="outline" className="animate-pulse gap-1">
+          <Badge variant="outline" className="animate-pulse gap-1 bg-primary/10 text-primary border-primary/20">
             <Timer className="w-3 h-3" /> Checking...
           </Badge>
         )}
       </div>
 
-      <Card className={`border-2 transition-colors duration-500 ${
-        feedback === 'correct' ? 'border-green-500 bg-green-50/10' : 
-        feedback === 'incorrect' ? 'border-red-500 bg-red-50/10' : 'border-border'
+      <Card className={`border-2 transition-all duration-500 shadow-lg ${
+        feedback === 'correct' ? 'border-green-500 bg-green-500/5' : 
+        feedback === 'incorrect' ? 'border-red-500 bg-red-500/5' : 'border-border'
       }`}>
         <CardHeader>
-          <CardTitle className="text-center">Target Sign</CardTitle>
+          <CardTitle className="text-center text-muted-foreground uppercase text-xs tracking-[0.2em]">Target Character</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col items-center gap-4">
-          <div className={`font-bold text-primary transition-all ${targetSign.length > 1 ? 'text-5xl' : 'text-9xl'} ${isProcessing ? 'opacity-50' : 'opacity-100'}`}>
+        <CardContent className="flex flex-col items-center gap-6 pb-10">
+          <div className={`font-black text-primary transition-all duration-300 text-9xl drop-shadow-sm ${isProcessing ? 'scale-90 opacity-50' : 'scale-100 opacity-100'}`}>
             {targetSign}
           </div>
           
-          <div className="h-8"> {/* Fixed height to prevent UI jumping */}
+          <div className="h-10 flex items-center"> 
             {feedback === 'correct' && (
-              <div className="flex items-center gap-2 text-green-600 animate-in zoom-in duration-300">
-                <CheckCircle2 className="w-6 h-6" />
-                <span className="font-semibold">Perfect!</span>
+              <div className="flex items-center gap-2 text-green-500 animate-in zoom-in duration-300">
+                <CheckCircle2 className="w-8 h-8" />
+                <span className="font-bold text-xl tracking-tight">Correct!</span>
               </div>
             )}
             
             {feedback === 'incorrect' && (
-              <div className="flex items-center gap-2 text-red-600 animate-in shake duration-300">
-                <XCircle className="w-6 h-6" />
-                <span className="font-semibold">Try again</span>
+              <div className="flex items-center gap-2 text-red-500 animate-in shake duration-300">
+                <XCircle className="w-8 h-8" />
+                <span className="font-bold text-xl tracking-tight">Try Again</span>
               </div>
             )}
           </div>
         </CardContent>
       </Card>
 
-      {/* Progress Section remains the same */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Your Progress</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <Card className="bg-card/50 border-none shadow-inner">
+        <CardContent className="pt-6 space-y-4">
           <div className="flex justify-between items-center">
-            <span className="text-sm font-medium">Accuracy</span>
-            <Badge variant="secondary" className="text-lg">{accuracy}%</Badge>
+            <span className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Session Accuracy</span>
+            <span className={`text-2xl font-black ${accuracy > 80 ? 'text-green-500' : 'text-primary'}`}>{accuracy}%</span>
           </div>
-          <Progress value={accuracy} className="h-3" />
+          <Progress value={accuracy} className="h-3 bg-muted" />
         </CardContent>
       </Card>
 
-      <div className="flex gap-3">
-        <Button onClick={generateNewSign} variant="outline" className="flex-1 gap-2">
-          <RefreshCw className="w-4 h-4" /> Skip
+      <div className="flex gap-3 mt-auto">
+        <Button onClick={generateNewSign} variant="secondary" className="flex-1 h-12 rounded-xl font-bold gap-2">
+          <RefreshCw className="w-4 h-4" /> Skip Letter
         </Button>
-        <Button onClick={resetPractice} variant="outline" className="flex-1">Reset</Button>
+        <Button onClick={resetPractice} variant="outline" className="flex-1 h-12 rounded-xl font-bold gap-2">
+          <RotateCcw className="w-4 h-4" /> Reset Stats
+        </Button>
       </div>
     </div>
   );

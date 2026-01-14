@@ -8,7 +8,12 @@ import { useSignRecognition, RecognitionResult } from '@/hooks/useSignRecognitio
 import { useSpeechSynthesis } from '@/hooks/useSpeechSynthesis';
 import { Badge } from '@/components/ui/badge';
 
-const CameraView = () => {
+// 🛠️ Added interface for the new prop
+interface CameraViewProps {
+  mode?: 'phrases' | 'alphabet';
+}
+
+const CameraView = ({ mode = 'phrases' }: CameraViewProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -20,10 +25,9 @@ const CameraView = () => {
     toggleMirrorCamera,
     outputText,
     setOutputText,
-    settings // This is the state from Context
+    settings 
   } = useApp();
 
-  // 🛡️ CRITICAL FIX: Keep a "Live" copy of settings so the loop sees changes instantly
   const settingsRef = useRef(settings);
   useEffect(() => {
     settingsRef.current = settings;
@@ -33,8 +37,9 @@ const CameraView = () => {
   const streamRef = useRef<MediaStream | null>(null);
   
   const { detectHands, drawLandmarks, isLoading: mediaPipeLoading, error: mediaPipeError } = useMediaPipe();
-  // Pass the language to the model loader
-  const { recognizeSign, isLoading: modelLoading, error: modelError, resetLastPrediction } = useSignRecognition(settings.language);
+  
+  // 🛠️ Updated: Now passing 'mode' to the sign recognition hook
+  const { recognizeSign, isLoading: modelLoading, error: modelError, resetLastPrediction } = useSignRecognition(settings.language, mode);
   
   const { speak, reset: resetSpeech, isSupported: speechSupported } = useSpeechSynthesis();
   
@@ -114,13 +119,8 @@ const CameraView = () => {
     if (allPredictions) setTopPredictions(allPredictions);
     if (!sign || sign === '') return;
 
-    // 🔊 UPDATED: This is where the magic happens!
     if (settingsRef.current.outputMode === 'speech' && speechSupported && confidence >= 0.6) {
-      
-      // FIX: Ipasa ang 'settingsRef.current.language' bilang second parameter
-      // Dito niya malalaman kung dapat ba siyang mag-Tagalog (FSL) o English (ASL)
       speak(sign, settingsRef.current.language);
-      
     }
 
     predictionsBufferRef.current.push({ sign, confidence, t: now });
@@ -252,6 +252,10 @@ const CameraView = () => {
                 {(currentConfidence * 100).toFixed(0)}%
               </Badge>
             )}
+            {/* 🛠️ Added Mode indicator */}
+            <Badge variant="outline" className="bg-primary/10 text-[10px] uppercase font-bold text-primary border-primary/20">
+              Mode: {mode}
+            </Badge>
           </div>
         )}
       </div>
