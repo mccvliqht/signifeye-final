@@ -25,37 +25,66 @@ for(let finger of [fp.Finger.Middle, fp.Finger.Ring, fp.Finger.Pinky]) {
     WaitGesture.addCurl(finger, fp.FingerCurl.FullCurl, 1.0);
 }
 
-// --- 4. YES (Fist + Orientation) ---
+// --- 4. YES (Solid Fist) ---
 export const YesGesture = new fp.GestureDescription('Yes');
-// All fingers except thumb are fully curled
+// All fingers MUST be fully curled
 for (let finger of [fp.Finger.Index, fp.Finger.Middle, fp.Finger.Ring, fp.Finger.Pinky]) {
   YesGesture.addCurl(finger, fp.FingerCurl.FullCurl, 1.0);
 }
-// Thumb tucked over or across
+// 🛠️ FIX: Strictly require Thumb to be tucked
 YesGesture.addCurl(fp.Finger.Thumb, fp.FingerCurl.FullCurl, 1.0);
 YesGesture.addCurl(fp.Finger.Thumb, fp.FingerCurl.HalfCurl, 0.5);
-// Adding direction helps distinguish this from 'A' or 'S'
-YesGesture.addDirection(fp.Finger.Index, fp.FingerDirection.VerticalUp, 0.8);
+// 🛠️ FIX: Explicitly forbid an extended thumb for "Yes"
+YesGesture.addCurl(fp.Finger.Thumb, fp.FingerCurl.NoCurl, 0.0);
 
-// --- 5. NO (The Beak Shape - Improved) ---
+// --- 5. NO (Beak / Pinch Shape) ---
 export const NoGesture = new fp.GestureDescription('No');
 
-// Index and Middle fingers: Half-curled to meet the thumb
+// Index and Middle: MUST be Half-Curled (Curving to meet thumb)
 [fp.Finger.Index, fp.Finger.Middle].forEach((finger) => {
   NoGesture.addCurl(finger, fp.FingerCurl.HalfCurl, 1.0);
-  // Allow a tiny bit of FullCurl in case the fingers touch tightly
-  NoGesture.addCurl(finger, fp.FingerCurl.FullCurl, 0.4); 
+  // Strictly avoid FullCurl to prevent it being seen as a 'Yes' fist
+  NoGesture.addCurl(finger, fp.FingerCurl.FullCurl, 0.0); 
 });
 
-// Thumb: Must be extended (NoCurl) or slightly curved to meet fingers
+// Thumb: Must be extended (NoCurl) to meet the fingers
 NoGesture.addCurl(fp.Finger.Thumb, fp.FingerCurl.NoCurl, 1.0);
-NoGesture.addCurl(fp.Finger.Thumb, fp.FingerCurl.HalfCurl, 0.6);
+NoGesture.addCurl(fp.Finger.Thumb, fp.FingerCurl.HalfCurl, 0.5);
 
-// Ring and Pinky: MUST be fully curled away
+// Ring and Pinky: MUST stay tucked (FullCurl)
 [fp.Finger.Ring, fp.Finger.Pinky].forEach((finger) => {
   NoGesture.addCurl(finger, fp.FingerCurl.FullCurl, 1.0);
 });
 
-// Orientation: Ensure the "beak" is pointing forward or slightly up
+// Direction: Pointing the "beak" forward helps distinguish the landmarks
 NoGesture.addDirection(fp.Finger.Index, fp.FingerDirection.Forward, 1.0);
-NoGesture.addDirection(fp.Finger.Middle, fp.FingerDirection.VerticalUp, 0.5);
+
+// --- 6. GOOD (Thumbs Up) ---
+export const GoodGesture = new fp.GestureDescription('Good');
+
+// 🛠️ THUMB MUST BE "REALLY STRAIGHT": 
+// We use NoCurl with a weight of 1.0 and strictly avoid HalfCurl/FullCurl
+GoodGesture.addCurl(fp.Finger.Thumb, fp.FingerCurl.NoCurl, 1.0);
+GoodGesture.addCurl(fp.Finger.Thumb, fp.FingerCurl.FullCurl, 0.0);
+GoodGesture.addCurl(fp.Finger.Thumb, fp.FingerCurl.HalfCurl, 0.0);
+
+// 🛠️ DIRECTIONAL LOCK: Thumb must be pointing straight up
+GoodGesture.addDirection(fp.Finger.Thumb, fp.FingerDirection.VerticalUp, 1.0);
+
+// All other fingers MUST be a solid fist (FullCurl)
+[fp.Finger.Index, fp.Finger.Middle, fp.Finger.Ring, fp.Finger.Pinky].forEach((finger) => {
+  GoodGesture.addCurl(finger, fp.FingerCurl.FullCurl, 1.0);
+  // Prevent these fingers from being seen as "NoCurl" (like in the letter B)
+  GoodGesture.addCurl(finger, fp.FingerCurl.NoCurl, 0.0);
+});
+
+// --- 7. WATER (W-Shape) ---
+export const WaterGesture = new fp.GestureDescription('Water');
+// Index, Middle, and Ring fingers are extended
+[fp.Finger.Index, fp.Finger.Middle, fp.Finger.Ring].forEach((finger) => {
+  WaterGesture.addCurl(finger, fp.FingerCurl.NoCurl, 1.0);
+});
+// Pinky and Thumb are curled
+[fp.Finger.Pinky, fp.Finger.Thumb].forEach((finger) => {
+  WaterGesture.addCurl(finger, fp.FingerCurl.FullCurl, 1.0);
+});

@@ -17,7 +17,6 @@ const PracticeMode = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const feedbackTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // 1. Initial Load
   useEffect(() => {
     generateNewSign();
     return () => {
@@ -25,7 +24,7 @@ const PracticeMode = () => {
     };
   }, []);
 
-  // 2. Recognition Logic
+  // 🛠️ Recognition Logic: Adjusted for 7-13 FPS stability
   useEffect(() => {
     if (!outputText || isProcessing || feedback) return;
     
@@ -48,13 +47,13 @@ const PracticeMode = () => {
       return;
     }
 
-    // ❌ INCORRECT LOGIC (with Grace Period)
-    if (currentOutput.length >= target.length) {
-      setIsProcessing(true);
-      
-      feedbackTimeoutRef.current = setTimeout(() => {
+    // ❌ FORGIVING INCORRECT LOGIC
+    // We wait 4 seconds (instead of 1.5) to give the jittery landmarks time to settle
+    if (currentOutput.length > 0 && currentOutput !== target) {
+      const checkTimer = setTimeout(() => {
         const finalCheck = outputText.trim().toUpperCase();
-        if (!finalCheck.includes(target)) {
+        
+        if (!finalCheck.includes(target) && !feedback) {
           setFeedback('incorrect');
           setAttempts(prev => prev + 1);
           
@@ -63,25 +62,25 @@ const PracticeMode = () => {
             clearOutput(); 
             setIsProcessing(false);
           }, 1500);
-        } else {
-          setIsProcessing(false); 
+        } else if (finalCheck.includes(target)) {
+          setIsProcessing(false); // User corrected it within the window
         }
-      }, 1500); 
+      }, 4000); 
+      
+      return () => clearTimeout(checkTimer);
     }
   }, [outputText, targetSign, clearOutput, isProcessing, feedback]);
 
-  // 3. Alphabet-only sign generation
   const generateNewSign = () => {
     if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current);
     
-    // 🛠️ UPDATED FILTER: Excluded J, Z (moving signs) and P, G, T (complex landmarks)
+    // Filtering J, Z (motion) and letters often misidentified due to skeleton compression
     const difficultLetters = ['J', 'Z', 'P', 'G', 'T'];
     
     const filteredAlphabet = ALPHABET.filter(letter => 
       !difficultLetters.includes(letter.toUpperCase())
     );
     
-    // Pick a random letter that isn't the same as the current one
     const availableLetters = filteredAlphabet.filter(l => l !== targetSign);
     const randomSign = availableLetters[Math.floor(Math.random() * availableLetters.length)];
     
@@ -133,7 +132,6 @@ const PracticeMode = () => {
                 <span className="font-bold text-xl tracking-tight">Correct!</span>
               </div>
             )}
-            
             {feedback === 'incorrect' && (
               <div className="flex items-center gap-2 text-red-500 animate-in shake duration-300">
                 <XCircle className="w-8 h-8" />
