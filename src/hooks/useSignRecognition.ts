@@ -3,10 +3,10 @@ import * as tf from '@tensorflow/tfjs';
 import * as fp from 'fingerpose'; 
 
 import { translateToFSL } from '@/lib/fslTranslations';
-// Siguraduhin na na-export mo ang PeaceGesture at OpenHandGesture sa customGestures.ts
 import { 
   HelloGesture, ILYGesture, WaitGesture, YesGesture, NoGesture, 
-  GoodGesture, WaterGesture, PeaceGesture, OpenHandGesture 
+  GoodGesture, WaterGesture, PeaceGesture, OpenHandGesture,
+  CallGesture, DrinkGesture, PointGesture, FlatHandGesture, FistGesture 
 } from '@/lib/customGestures'; 
 
 import { loadTrainedModel, trainAndSaveModel } from '@/lib/modelTrainer';
@@ -34,7 +34,8 @@ export const useSignRecognition = (language: 'ASL' | 'FSL', mode: 'phrases' | 'a
     lastPredictionRef.current = '';
     setError(null);
     
-    // Only initialize Fingerpose if we are in phrases mode
+    // 1. SETUP FINGERPOSE (PHRASES MODE)
+    // Dito nilalagay lahat ng "Static Signs" na gusto mong madetect
     if (mode === 'phrases') {
         gestureEstimatorRef.current = new fp.GestureEstimator([
             HelloGesture, 
@@ -45,12 +46,17 @@ export const useSignRecognition = (language: 'ASL' | 'FSL', mode: 'phrases' | 'a
             GoodGesture,
             WaterGesture,
             PeaceGesture, 
-            OpenHandGesture // Ito yung base shape para sa Father/Mother
+            OpenHandGesture,   // Base for Father/Mother
+            CallGesture,       // Call Me
+            DrinkGesture,      // Drink
+            PointGesture,      // Base for You/Me/Think
+            FlatHandGesture,   // Base for Please
+            FistGesture        // Base for Sorry
         ]);
         setIsLoading(false);
     }
 
-    // Only load the heavy TFJS Alphabet model if we are in alphabet mode
+    // 2. SETUP TENSORFLOW (ALPHABET MODE)
     if (mode === 'alphabet') {
       loadModel();
     } 
@@ -116,7 +122,7 @@ export const useSignRecognition = (language: 'ASL' | 'FSL', mode: 'phrases' | 'a
 
     const hand = landmarks[0]; 
     
-    // --- PART A: PHRASES MODE ONLY ---
+    // --- PART A: PHRASES MODE (Call Me, Drink, Father, Mother, etc.) ---
     if (mode === 'phrases' && gestureEstimatorRef.current) {
         const fpLandmarks = hand.map((lm: any) => [lm.x, lm.y, lm.z]);
         const gestureEst = await gestureEstimatorRef.current.estimate(fpLandmarks, 7.0); 
@@ -126,28 +132,74 @@ export const useSignRecognition = (language: 'ASL' | 'FSL', mode: 'phrases' | 'a
             
             if (bestGesture.score > 7.0) { 
                 let finalSign = bestGesture.name;
+                const wristY = hand[0].y; // 0 = Taas (Noo), 1 = Baba (Dibdib)
 
-                // --- 🚀 NEW LOGIC: FATHER vs MOTHER vs FINE DISTINCTION ---
-                // Kapag OpenHand o Hello ang na-detect, tignan ang height ng wrist
-                if (finalSign === 'OpenHand' || finalSign === 'Hello') {
-                    const wristY = hand[0].y; 
+                // --- 🚀 COMPLETE LOGIC MAPPING 🚀 ---
 
-                    // 1. FATHER: Nasa taas (Noo area)
-                    // Threshold: Mas mataas sa 30% ng screen
+                // 1. OPEN HAND / HELLO / FLAT HAND Logic
+                // Covers: Father, Mother, Fine, Please
+                if (finalSign === 'OpenHand' || finalSign === 'Hello' || finalSign === 'FlatHand') {
+                    // TAAS (Noo) -> Father
                     if (wristY < 0.35) { 
                         finalSign = 'Father';
                     } 
-                    // 2. MOTHER: Nasa gitna (Chin area)
-                    // Threshold: Nasa pagitan ng 30% at 60% ng screen
+                    // GITNA (Bibig/Chin) -> Mother
                     else if (wristY < 0.60) {
                         finalSign = 'Mother';
                     }
-                    // 3. FINE: Nasa baba (Chest area)
-                    // Threshold: Mas mababa sa 60% ng screen
+                    // BABA (Dibdib) -> Please vs Fine
                     else {
-                        finalSign = 'Fine';
+                        if (finalSign === 'FlatHand') {
+                             finalSign = 'Please'; // Flat hand on chest implies rubbing/please
+                        } else {
+                             finalSign = 'Fine'; // Thumb out/Open hand on chest
+                        }
                     }
                 }
+
+                // 2. POINTING Logic
+                // Covers: Think, You, Me/I
+                if (finalSign === 'Point') {
+                    // TAAS (Noo) -> Think
+                    if (wristY < 0.35) {
+                        finalSign = 'Think';
+                    }
+                    // BABA (Dibdib) -> Me / I
+                    else if (wristY > 0.60) {
+                        finalSign = 'Me'; // or 'I'
+                    }
+                    // GITNA (Nakaturo sa Camera) -> You
+                    else {
+                        finalSign = 'You';
+                    }
+                }
+
+                // 3. FIST Logic
+                // Covers: Sorry vs Yes
+                if (finalSign === 'Fist' || finalSign === 'Yes') {
+                    // BABA (Dibdib) -> Sorry (Rubbing motion implied)
+                    if (wristY > 0.60) {
+                        finalSign = 'Sorry';
+                    } else {
+                        // Default to Yes otherwise
+                        finalSign = 'Yes';
+                    }
+                }
+
+                // 4. CALL ME Logic
+                if (finalSign === 'Call Me') {
+                    // Dapat nasa taas (Tenga)
+                    if (wristY > 0.60) return null; // Ignore if too low
+                }
+
+                // 5. DRINK Logic
+                if (finalSign === 'Drink') {
+                    // Dapat nasa gitna (Bibig)
+                    // Kung nasa baba masyado, baka letter C lang
+                    if (wristY < 0.20 || wristY > 0.65) finalSign = 'C'; 
+                }
+
+                // --- END LOGIC ---
 
                 if (language === 'FSL') finalSign = translateToFSL(finalSign);
 
@@ -163,7 +215,7 @@ export const useSignRecognition = (language: 'ASL' | 'FSL', mode: 'phrases' | 'a
         return null;
     }
 
-    // --- PART B: ALPHABET MODE ONLY ---
+    // --- PART B: ALPHABET MODE (Standard TensorFlow) ---
     if (mode === 'alphabet' && modelRef.current) {
         try {
           const features = preprocessLandmarks(landmarks);

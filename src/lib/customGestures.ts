@@ -114,7 +114,7 @@ PeaceGesture.addDirection(fp.Finger.Middle, fp.FingerDirection.DiagonalUpRight, 
     PeaceGesture.addCurl(finger, fp.FingerCurl.HalfCurl, 0.9); // Allow slight looseness
 });
 
-// --- 9. OPEN HAND (Base for Father, Mother, Fine) 🖐️ ---
+// --- 9-11. OPEN HAND (Base for Father, Mother, Fine) 🖐️ ---
 // Ito ang gagamitin nating base shape.
 export const OpenHandGesture = new fp.GestureDescription('OpenHand');
 
@@ -125,4 +125,47 @@ for(let finger of [fp.Finger.Thumb, fp.Finger.Index, fp.Finger.Middle, fp.Finger
     // Allow slight spread
     OpenHandGesture.addDirection(finger, fp.FingerDirection.DiagonalUpLeft, 0.5);
     OpenHandGesture.addDirection(finger, fp.FingerDirection.DiagonalUpRight, 0.5);
+}
+
+// --- 12. CALL ME (Y-Shape) 🤙 ---
+export const CallGesture = new fp.GestureDescription('Call Me');
+CallGesture.addCurl(fp.Finger.Thumb, fp.FingerCurl.NoCurl, 1.0);
+CallGesture.addCurl(fp.Finger.Pinky, fp.FingerCurl.NoCurl, 1.0);
+[fp.Finger.Index, fp.Finger.Middle, fp.Finger.Ring].forEach((finger) => {
+    CallGesture.addCurl(finger, fp.FingerCurl.FullCurl, 1.0);
+});
+
+// --- 13. DRINK (C-Shape) 🥤 ---
+export const DrinkGesture = new fp.GestureDescription('Drink');
+[fp.Finger.Thumb, fp.Finger.Index, fp.Finger.Middle, fp.Finger.Ring].forEach((finger) => {
+    DrinkGesture.addCurl(finger, fp.FingerCurl.HalfCurl, 1.0);
+    DrinkGesture.addCurl(finger, fp.FingerCurl.NoCurl, 0.5); // Allow loose C
+});
+DrinkGesture.addCurl(fp.Finger.Pinky, fp.FingerCurl.HalfCurl, 0.5);
+DrinkGesture.addCurl(fp.Finger.Pinky, fp.FingerCurl.FullCurl, 0.5);
+
+// --- 14-16. POINT (Index Only) - Base for You / Me / Think 👈 ---
+export const PointGesture = new fp.GestureDescription('Point');
+PointGesture.addCurl(fp.Finger.Index, fp.FingerCurl.NoCurl, 1.0);
+[fp.Finger.Middle, fp.Finger.Ring, fp.Finger.Pinky].forEach((finger) => {
+    PointGesture.addCurl(finger, fp.FingerCurl.FullCurl, 1.0);
+});
+// Thumb can be tucked or loose
+PointGesture.addCurl(fp.Finger.Thumb, fp.FingerCurl.HalfCurl, 1.0);
+PointGesture.addCurl(fp.Finger.Thumb, fp.FingerCurl.FullCurl, 0.8);
+
+// --- 17. FLAT HAND (B-Hand) - For "Please" 🙏 ---
+// Iba ito sa OpenHand. Dito dapat magkakadikit (o straight) lahat.
+export const FlatHandGesture = new fp.GestureDescription('FlatHand');
+for(let finger of [fp.Finger.Thumb, fp.Finger.Index, fp.Finger.Middle, fp.Finger.Ring, fp.Finger.Pinky]) {
+    FlatHandGesture.addCurl(finger, fp.FingerCurl.NoCurl, 1.0);
+}
+// Note: Sa Fingerpose, mahirap idistinguish ang Open vs Flat, 
+// kaya gagamitin natin ang POSITION logic para sigurado.
+
+// --- 18. FIST (A-Hand) -  Sorry ✊ ---
+// (Reuse FistGesture or YesGesture logic)
+export const FistGesture = new fp.GestureDescription('Fist');
+for(let finger of [fp.Finger.Index, fp.Finger.Middle, fp.Finger.Ring, fp.Finger.Pinky]) {
+    FistGesture.addCurl(finger, fp.FingerCurl.FullCurl, 1.0);
 }
