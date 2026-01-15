@@ -53,29 +53,32 @@ const AlphabetGuide = () => {
   };
 
   return (
-    <div className="h-full p-6">
+    <div className="h-full p-4 md:p-6">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold mb-2 text-white">
+        <h2 className="text-xl md:text-2xl font-bold mb-2 text-white">
           {settings.language} Sign Guide
         </h2>
-        <p className="text-muted-foreground">
+        {/* 🛠️ MODIFIED: Font size smaller on mobile (text-xs) vs desktop (text-base) */}
+        <p className="text-xs md:text-base text-muted-foreground leading-relaxed">
           Learn the hand positions for each sign. Static signs can be held, 
           while specific signs require movement.
         </p>
       </div>
 
       <ScrollArea className="h-[calc(100vh-200px)]">
-        {/* Common Phrases Section: Now standardized with Alphabet style */}
+        {/* Common Phrases Section */}
         <div className="mb-10">
-          <h3 className="text-xl font-semibold mb-4">Common Phrases</h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <h3 className="text-lg md:text-xl font-semibold mb-4">Common Phrases</h3>
+          {/* 🛠️ MODIFIED: Changed grid-cols-2 to grid-cols-1 on mobile for more space */}
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {commonPhrases.map((phrase) => (
               <Card key={phrase} className="hover:shadow-lg transition-shadow">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-xl font-bold text-white">{phrase}</CardTitle>
+                <CardHeader className="pb-2 md:pb-3">
+                  <CardTitle className="text-lg md:text-xl font-bold text-white">{phrase}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <CardDescription className="text-sm leading-relaxed">
+                  {/* 🛠️ MODIFIED: Description font set to text-xs on mobile */}
+                  <CardDescription className="text-xs md:text-sm leading-relaxed">
                     {getSignDescription(phrase)}
                   </CardDescription>
                 </CardContent>
@@ -86,22 +89,24 @@ const AlphabetGuide = () => {
 
         {/* Alphabet Section */}
         <div>
-          <h3 className="text-xl font-semibold mb-4">Alphabet</h3>
+          <h3 className="text-lg md:text-xl font-semibold mb-4">Alphabet</h3>
+          {/* 🛠️ MODIFIED: Standard grid for letters */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {alphabet.map((letter) => (
               <Card key={letter} className="hover:shadow-lg transition-shadow">
-                <CardHeader className="pb-3">
+                <CardHeader className="pb-2 md:pb-3">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-3xl font-bold text-white">{letter}</CardTitle>
+                    <CardTitle className="text-2xl md:text-3xl font-bold text-white">{letter}</CardTitle>
                     {!isStatic(letter) && (
-                      <Badge variant="secondary" className="text-xs">
+                      <Badge variant="secondary" className="text-[10px] md:text-xs">
                         Motion
                       </Badge>
                     )}
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <CardDescription className="text-sm leading-relaxed">
+                  {/* 🛠️ MODIFIED: Description font set to text-xs on mobile */}
+                  <CardDescription className="text-xs md:text-sm leading-relaxed">
                     {getSignDescription(letter)}
                   </CardDescription>
                 </CardContent>

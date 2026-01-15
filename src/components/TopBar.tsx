@@ -1,8 +1,9 @@
-import { Settings, BookOpen, Target, Eye, Info, Download } from 'lucide-react'; 
+import { useState } from 'react';
+import { Settings, BookOpen, Target, Eye, Info, Download, X } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { useApp } from '@/contexts/AppContext'; // Import your custom hook
+import { useApp } from '@/contexts/AppContext';
 
 interface TopBarProps {
   onSettingsClick: () => void;
@@ -11,25 +12,8 @@ interface TopBarProps {
 const TopBar = ({ onSettingsClick }: TopBarProps) => {
   const navigate = useNavigate();
   const location = useLocation();
-  
-  // 🛠️ Consume the global installation state from AppContext
   const { installPrompt, setInstallPrompt } = useApp();
-
-  const handleInstallClick = async () => {
-    // If the prompt event doesn't exist in global state, do nothing
-    if (!installPrompt) return;
-    
-    // Trigger the native browser install dialog
-    installPrompt.prompt();
-    
-    // Check if the user accepted or dismissed the installation
-    const { outcome } = await installPrompt.userChoice;
-    if (outcome === 'accepted') {
-      console.log('SignifEye installation accepted');
-      // Clear the global prompt so the button disappears after success
-      setInstallPrompt(null); 
-    }
-  };
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const navItems = [
     { path: '/', label: 'Recognize', icon: Eye },
@@ -38,19 +22,87 @@ const TopBar = ({ onSettingsClick }: TopBarProps) => {
     { path: '/about', label: 'About', icon: Info },
   ];
 
+  const handleNavClick = (path: string) => {
+    navigate(path);
+    setIsMenuOpen(false);
+  };
+
   return (
-    /* Sticky ensures the navigation stays visible during long recognition sessions */
-    <header className="flex items-center justify-between px-4 py-3 border-b border-border bg-card sticky top-0 z-50">
-      <div className="flex items-center gap-4 overflow-hidden flex-1">
-        <div className="flex items-center gap-2 shrink-0">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-            <span className="text-primary-foreground font-bold text-lg">👁️</span>
+    <header className="sticky top-0 z-50 w-full border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
+      <div className="flex items-center justify-between px-4 py-3">
+        
+        {/* 👁️ LEFT GROUP: Logo + Title + Navigation */}
+        <div className="flex items-center gap-6 overflow-hidden">
+          <div className="flex items-center gap-2 shrink-0">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="rounded-lg bg-primary hover:bg-primary/90 shrink-0 h-9 w-9 flex items-center justify-center"
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+            >
+              {isMenuOpen ? (
+                <X className="h-5 w-5 text-primary-foreground" />
+              ) : (
+                <span className="text-primary-foreground font-bold text-lg leading-none">👁️</span>
+              )}
+            </Button>
+            <h1 className="text-xl font-bold tracking-tight hidden md:block">SignifEye</h1>
           </div>
-          <h1 className="text-xl font-bold tracking-tight hidden sm:block">SignifEye</h1>
+
+          {/* Desktop Navigation Grouped on Left */}
+          <nav className="hidden md:flex items-center gap-1 border-l border-border/50 pl-4">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = location.pathname === item.path;
+              return (
+                <Button
+                  key={item.path}
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleNavClick(item.path)}
+                  className={cn(
+                    'gap-2 px-3 h-9 text-sm font-semibold rounded-md transition-all',
+                    isActive ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
+                  )}
+                >
+                  {Icon && <Icon className={cn("w-4 h-4", isActive ? "text-primary" : "text-muted-foreground")} />}
+                  <span>{item.label}</span>
+                </Button>
+              );
+            })}
+          </nav>
         </div>
 
-        {/* 🛠️ Scrollable Nav: Optimized for mobile tab switching */}
-        <nav className="flex items-center gap-1 overflow-x-auto no-scrollbar pb-1">
+        {/* ⚙️ RIGHT GROUP: Actions */}
+        <div className="flex items-center gap-2 shrink-0">
+          {installPrompt && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => installPrompt.prompt()}
+              /* 🛠️ UPDATED: Added px-3 and kept text visible for mobile */
+              className="gap-2 border-primary/50 text-primary h-9 px-3 text-xs font-bold flex items-center shadow-sm"
+            >
+              <Download className="w-4 h-4 shrink-0" />
+              {/* 🛠️ FIX: Removed 'hidden xs:inline' so text always shows */}
+              <span className="whitespace-nowrap">Install App</span>
+            </Button>
+          )}
+
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onSettingsClick}
+            className="hover:bg-secondary h-9 w-9"
+          >
+            <Settings className="h-5 w-5" />
+          </Button>
+        </div>
+      </div>
+
+      {/* 📱 Mobile Tabs Overlay (Vertical) */}
+      {isMenuOpen && (
+        <div className="absolute top-full left-0 w-full bg-card border-b border-border p-3 flex flex-col gap-1.5 animate-in slide-in-from-top-2 duration-200 md:hidden shadow-2xl">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
@@ -58,48 +110,19 @@ const TopBar = ({ onSettingsClick }: TopBarProps) => {
               <Button
                 key={item.path}
                 variant={isActive ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => navigate(item.path)}
                 className={cn(
-                  'gap-2 shrink-0 whitespace-nowrap px-3 h-9',
-                  isActive && 'bg-primary text-primary-foreground'
+                  "justify-start gap-4 h-12 w-full text-base rounded-xl",
+                  isActive ? "bg-primary text-primary-foreground" : "bg-secondary/10"
                 )}
+                onClick={() => handleNavClick(item.path)}
               >
-                {Icon && <Icon className="w-4 h-4" />}
-                <span className="text-xs sm:text-sm">{item.label}</span>
+                {Icon && <Icon className="w-5 h-5" />}
+                <span className="font-bold">{item.label}</span>
               </Button>
             );
           })}
-        </nav>
-      </div>
-      
-      <div className="flex items-center gap-2 shrink-0 ml-2">
-      {/* 🛠️ Install Button: Forced text visibility for PC and Mobile */}
-      {installPrompt && (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleInstallClick}
-          className="gap-2 border-primary text-primary h-9 px-3 animate-in fade-in zoom-in duration-300 shadow-sm hover:bg-primary/5 shrink-0"
-        >
-          <Download className="w-4 h-4 shrink-0" />
-          {/* Removed 'hidden' class so text always shows */}
-          <span className="text-xs font-bold whitespace-nowrap">
-            Install App
-          </span>
-        </Button>
+        </div>
       )}
-
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onSettingsClick}
-          className="hover:bg-secondary h-9 w-9"
-          aria-label="Open settings"
-        >
-          <Settings className="h-5 w-5" />
-        </Button>
-      </div>
     </header>
   );
 };

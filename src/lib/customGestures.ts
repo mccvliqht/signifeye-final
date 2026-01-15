@@ -25,17 +25,23 @@ for(let finger of [fp.Finger.Middle, fp.Finger.Ring, fp.Finger.Pinky]) {
     WaitGesture.addCurl(finger, fp.FingerCurl.FullCurl, 1.0);
 }
 
-// --- 4. YES (Solid Fist) ---
+// --- YES (Dominant Fist, Thumb Can Be Bent) ---
 export const YesGesture = new fp.GestureDescription('Yes');
-// All fingers MUST be fully curled
-for (let finger of [fp.Finger.Index, fp.Finger.Middle, fp.Finger.Ring, fp.Finger.Pinky]) {
+
+// Strong fist
+[fp.Finger.Index, fp.Finger.Middle, fp.Finger.Ring, fp.Finger.Pinky].forEach(finger => {
   YesGesture.addCurl(finger, fp.FingerCurl.FullCurl, 1.0);
-}
-// 🛠️ FIX: Strictly require Thumb to be tucked
+});
+
+// Thumb: bent = YES
 YesGesture.addCurl(fp.Finger.Thumb, fp.FingerCurl.FullCurl, 1.0);
-YesGesture.addCurl(fp.Finger.Thumb, fp.FingerCurl.HalfCurl, 0.5);
-// 🛠️ FIX: Explicitly forbid an extended thumb for "Yes"
+YesGesture.addCurl(fp.Finger.Thumb, fp.FingerCurl.HalfCurl, 1.0);
+
+// Straight thumb should NOT be YES
 YesGesture.addCurl(fp.Finger.Thumb, fp.FingerCurl.NoCurl, 0.0);
+
+// 🚫 DO NOT block directions for YES
+// Let score win naturally
 
 // --- 5. NO (Beak / Pinch Shape) ---
 export const NoGesture = new fp.GestureDescription('No');
@@ -59,23 +65,22 @@ NoGesture.addCurl(fp.Finger.Thumb, fp.FingerCurl.HalfCurl, 0.5);
 // Direction: Pointing the "beak" forward helps distinguish the landmarks
 NoGesture.addDirection(fp.Finger.Index, fp.FingerDirection.Forward, 1.0);
 
-// --- 6. GOOD (Thumbs Up) ---
+// --- GOOD (Strict Thumbs Up, Stable) ---
 export const GoodGesture = new fp.GestureDescription('Good');
 
-// 🛠️ THUMB MUST BE "REALLY STRAIGHT": 
-// We use NoCurl with a weight of 1.0 and strictly avoid HalfCurl/FullCurl
+// Thumb MUST be straight
 GoodGesture.addCurl(fp.Finger.Thumb, fp.FingerCurl.NoCurl, 1.0);
+
+// Bent thumb weakens GOOD but does NOT nuke it
+GoodGesture.addCurl(fp.Finger.Thumb, fp.FingerCurl.HalfCurl, 0.1);
 GoodGesture.addCurl(fp.Finger.Thumb, fp.FingerCurl.FullCurl, 0.0);
-GoodGesture.addCurl(fp.Finger.Thumb, fp.FingerCurl.HalfCurl, 0.0);
 
-// 🛠️ DIRECTIONAL LOCK: Thumb must be pointing straight up
-GoodGesture.addDirection(fp.Finger.Thumb, fp.FingerDirection.VerticalUp, 1.0);
+// Thumb prefers vertical
+GoodGesture.addDirection(fp.Finger.Thumb, fp.FingerDirection.VerticalUp, 0.9);
 
-// All other fingers MUST be a solid fist (FullCurl)
-[fp.Finger.Index, fp.Finger.Middle, fp.Finger.Ring, fp.Finger.Pinky].forEach((finger) => {
+// Other fingers in fist
+[fp.Finger.Index, fp.Finger.Middle, fp.Finger.Ring, fp.Finger.Pinky].forEach(finger => {
   GoodGesture.addCurl(finger, fp.FingerCurl.FullCurl, 1.0);
-  // Prevent these fingers from being seen as "NoCurl" (like in the letter B)
-  GoodGesture.addCurl(finger, fp.FingerCurl.NoCurl, 0.0);
 });
 
 // --- 7. WATER (W-Shape) ---
