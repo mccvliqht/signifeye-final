@@ -25,7 +25,7 @@ for(let finger of [fp.Finger.Middle, fp.Finger.Ring, fp.Finger.Pinky]) {
     WaitGesture.addCurl(finger, fp.FingerCurl.FullCurl, 1.0);
 }
 
-// --- YES (Dominant Fist, Thumb Can Be Bent) ---
+// --- 4. YES (Dominant Fist, Thumb Can Be Bent) ---
 export const YesGesture = new fp.GestureDescription('Yes');
 
 // Strong fist
@@ -65,7 +65,7 @@ NoGesture.addCurl(fp.Finger.Thumb, fp.FingerCurl.HalfCurl, 0.5);
 // Direction: Pointing the "beak" forward helps distinguish the landmarks
 NoGesture.addDirection(fp.Finger.Index, fp.FingerDirection.Forward, 1.0);
 
-// --- GOOD (Strict Thumbs Up, Stable) ---
+// --- 6. GOOD (Strict Thumbs Up, Stable) ---
 export const GoodGesture = new fp.GestureDescription('Good');
 
 // Thumb MUST be straight
