@@ -3,7 +3,12 @@ import * as tf from '@tensorflow/tfjs';
 import * as fp from 'fingerpose'; 
 
 import { translateToFSL } from '@/lib/fslTranslations';
-import { HelloGesture, ILYGesture, WaitGesture, YesGesture, NoGesture, GoodGesture, WaterGesture } from '@/lib/customGestures'; 
+// Siguraduhin na na-export mo ang PeaceGesture at OpenHandGesture sa customGestures.ts
+import { 
+  HelloGesture, ILYGesture, WaitGesture, YesGesture, NoGesture, 
+  GoodGesture, WaterGesture, PeaceGesture, OpenHandGesture 
+} from '@/lib/customGestures'; 
+
 import { loadTrainedModel, trainAndSaveModel } from '@/lib/modelTrainer';
 import { ALPHABET } from '@/lib/trainingData';
 
@@ -29,7 +34,7 @@ export const useSignRecognition = (language: 'ASL' | 'FSL', mode: 'phrases' | 'a
     lastPredictionRef.current = '';
     setError(null);
     
-    // Only initialize Fingerpose if we are in phrases mode to save memory/processing
+    // Only initialize Fingerpose if we are in phrases mode
     if (mode === 'phrases') {
         gestureEstimatorRef.current = new fp.GestureEstimator([
             HelloGesture, 
@@ -39,6 +44,8 @@ export const useSignRecognition = (language: 'ASL' | 'FSL', mode: 'phrases' | 'a
             YesGesture,
             GoodGesture,
             WaterGesture,
+            PeaceGesture, 
+            OpenHandGesture // Ito yung base shape para sa Father/Mother
         ]);
         setIsLoading(false);
     }
@@ -110,15 +117,38 @@ export const useSignRecognition = (language: 'ASL' | 'FSL', mode: 'phrases' | 'a
     const hand = landmarks[0]; 
     
     // --- PART A: PHRASES MODE ONLY ---
-    // This stops "Hello" from mixing up with Alphabet letters like "B"
     if (mode === 'phrases' && gestureEstimatorRef.current) {
         const fpLandmarks = hand.map((lm: any) => [lm.x, lm.y, lm.z]);
-        const gestureEst = await gestureEstimatorRef.current.estimate(fpLandmarks, 7.0); // Sensitive threshold
+        const gestureEst = await gestureEstimatorRef.current.estimate(fpLandmarks, 7.0); 
         
         if (gestureEst.gestures.length > 0) {
             const bestGesture = gestureEst.gestures.reduce((p, c) => (p.score > c.score ? p : c));
+            
             if (bestGesture.score > 7.0) { 
                 let finalSign = bestGesture.name;
+
+                // --- 🚀 NEW LOGIC: FATHER vs MOTHER vs FINE DISTINCTION ---
+                // Kapag OpenHand o Hello ang na-detect, tignan ang height ng wrist
+                if (finalSign === 'OpenHand' || finalSign === 'Hello') {
+                    const wristY = hand[0].y; 
+
+                    // 1. FATHER: Nasa taas (Noo area)
+                    // Threshold: Mas mataas sa 30% ng screen
+                    if (wristY < 0.35) { 
+                        finalSign = 'Father';
+                    } 
+                    // 2. MOTHER: Nasa gitna (Chin area)
+                    // Threshold: Nasa pagitan ng 30% at 60% ng screen
+                    else if (wristY < 0.60) {
+                        finalSign = 'Mother';
+                    }
+                    // 3. FINE: Nasa baba (Chest area)
+                    // Threshold: Mas mababa sa 60% ng screen
+                    else {
+                        finalSign = 'Fine';
+                    }
+                }
+
                 if (language === 'FSL') finalSign = translateToFSL(finalSign);
 
                 if (finalSign === lastPredictionRef.current) {
@@ -126,14 +156,14 @@ export const useSignRecognition = (language: 'ASL' | 'FSL', mode: 'phrases' | 'a
                 }
                 lastPredictionRef.current = finalSign;
                 setTimeout(() => { if (lastPredictionRef.current === finalSign) lastPredictionRef.current = ''; }, 2000); 
+                
                 return { sign: finalSign, confidence: bestGesture.score/10, timestamp: Date.now(), type: 'static' };
             }
         }
-        return null; // Exit early if in phrases mode
+        return null;
     }
 
     // --- PART B: ALPHABET MODE ONLY ---
-    // Now runs with ZERO competition from Fingerpose phrases
     if (mode === 'alphabet' && modelRef.current) {
         try {
           const features = preprocessLandmarks(landmarks);
@@ -168,7 +198,7 @@ export const useSignRecognition = (language: 'ASL' | 'FSL', mode: 'phrases' | 'a
             sign: detectedSign,
             confidence: topPrediction.confidence,
             timestamp: Date.now(),
-            allPredictions: predictions, // Full list for your new UI
+            allPredictions: predictions, 
             type: 'alphabet'
           };
         } catch (err) {

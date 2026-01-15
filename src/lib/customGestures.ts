@@ -93,3 +93,36 @@ export const WaterGesture = new fp.GestureDescription('Water');
 [fp.Finger.Pinky, fp.Finger.Thumb].forEach((finger) => {
   WaterGesture.addCurl(finger, fp.FingerCurl.FullCurl, 1.0);
 });
+
+// --- 8. PEACE (Victory Sign) ✌️ ---
+export const PeaceGesture = new fp.GestureDescription('Peace');
+
+// Index & Middle: Straight Up (V-Shape)
+PeaceGesture.addCurl(fp.Finger.Index, fp.FingerCurl.NoCurl, 1.0);
+PeaceGesture.addDirection(fp.Finger.Index, fp.FingerDirection.VerticalUp, 1.0);
+PeaceGesture.addDirection(fp.Finger.Index, fp.FingerDirection.DiagonalUpLeft, 0.9);
+PeaceGesture.addDirection(fp.Finger.Index, fp.FingerDirection.DiagonalUpRight, 0.9);
+
+PeaceGesture.addCurl(fp.Finger.Middle, fp.FingerCurl.NoCurl, 1.0);
+PeaceGesture.addDirection(fp.Finger.Middle, fp.FingerDirection.VerticalUp, 1.0);
+PeaceGesture.addDirection(fp.Finger.Middle, fp.FingerDirection.DiagonalUpLeft, 0.9);
+PeaceGesture.addDirection(fp.Finger.Middle, fp.FingerDirection.DiagonalUpRight, 0.9);
+
+// Ring, Pinky, Thumb: Curled
+[fp.Finger.Thumb, fp.Finger.Ring, fp.Finger.Pinky].forEach((finger) => {
+    PeaceGesture.addCurl(finger, fp.FingerCurl.FullCurl, 1.0);
+    PeaceGesture.addCurl(finger, fp.FingerCurl.HalfCurl, 0.9); // Allow slight looseness
+});
+
+// --- 9. OPEN HAND (Base for Father, Mother, Fine) 🖐️ ---
+// Ito ang gagamitin nating base shape.
+export const OpenHandGesture = new fp.GestureDescription('OpenHand');
+
+// All fingers open and pointing up
+for(let finger of [fp.Finger.Thumb, fp.Finger.Index, fp.Finger.Middle, fp.Finger.Ring, fp.Finger.Pinky]) {
+    OpenHandGesture.addCurl(finger, fp.FingerCurl.NoCurl, 1.0);
+    OpenHandGesture.addDirection(finger, fp.FingerDirection.VerticalUp, 1.0);
+    // Allow slight spread
+    OpenHandGesture.addDirection(finger, fp.FingerDirection.DiagonalUpLeft, 0.5);
+    OpenHandGesture.addDirection(finger, fp.FingerDirection.DiagonalUpRight, 0.5);
+}
