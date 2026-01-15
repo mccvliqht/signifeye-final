@@ -16,10 +16,10 @@ const TopBar = ({ onSettingsClick }: TopBarProps) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const navItems = [
+    { path: '/about', label: 'About', icon: Info },
     { path: '/', label: 'Recognize', icon: Eye },
     { path: '/guide', label: 'Guide', icon: BookOpen },
     { path: '/practice', label: 'Practice', icon: Target },
-    { path: '/about', label: 'About', icon: Info },
   ];
 
   const handleNavClick = (path: string) => {

@@ -89,6 +89,9 @@ const AlphabetGuide = () => {
         case 'Think': return '/signs/words/think.png';
         case 'Yes': return '/signs/words/yes.jpg';
         case 'You': return '/signs/words/you.png';
+        case 'Hello': return '/signs/words/hello.jpg';
+        case 'Wait a Minute': return '/signs/words/wait.jpg';
+        case 'Good': return '/signs/words/good.jpg';
         default: return `/signs/words/${sign.replace(/\s+/g, '')}.jpg`;
     }
   };
