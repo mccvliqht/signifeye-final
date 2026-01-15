@@ -74,11 +74,22 @@ const AlphabetGuide = () => {
 
   const getImagePath = (sign: string) => {
     switch (sign) {
-        case 'I love you': return '/signs/ILoveYou.png';
-        case 'Wait a Minute': return '/signs/Wait.png';
-        case 'Call Me': return '/signs/CallMe.png';
-        case 'I/Me': return '/signs/Me.png';
-        default: return `/signs/${sign.replace(/\s+/g, '')}.png`;
+        case 'I love you': return '/signs/words/iloveyou.jpg';
+        case 'Water': return '/signs/words/water.jpg';
+        case 'Call Me': return '/signs/words/call.png';
+        case 'I/Me': return '/signs/words/me.png';
+        case 'Drink': return '/signs/words/drink.jpg';
+        case 'Father': return '/signs/words/father.jpg';
+        case 'Mother': return '/signs/words/mother.jpg';
+        case 'Fine': return '/signs/words/fine.png';
+        case 'No': return '/signs/words/no.jpg';
+        case 'Peace': return '/signs/words/peace.jpg';
+        case 'Please': return '/signs/words/please.jpg';
+        case 'Sorry': return '/signs/words/sorry.jpg';
+        case 'Think': return '/signs/words/think.png';
+        case 'Yes': return '/signs/words/yes.jpg';
+        case 'You': return '/signs/words/you.png';
+        default: return `/signs/words/${sign.replace(/\s+/g, '')}.jpg`;
     }
   };
 
@@ -114,13 +125,11 @@ const AlphabetGuide = () => {
                return (
                   <Card 
                     key={phrase} 
-                    // REMOVED: text-white, hardcoded borders
-                    // ADDED: border-border, hover:border-primary (Unified Theme)
-                    className="group relative overflow-hidden cursor-pointer border border-border bg-card hover:border-primary transition-all hover:shadow-md"
+                    // FIXED: Added h-[180px] to match Alphabet cards
+                    className="group relative overflow-hidden cursor-pointer border border-border bg-card hover:border-primary transition-all hover:shadow-md h-[180px]"
                     onClick={() => setSelectedItem({ title: phrase, desc, image: img })}
                   >
                     <CardHeader className="pb-2 md:pb-3 relative z-10">
-                      {/* FIXED: text-white -> text-card-foreground */}
                       <CardTitle className="text-lg md:text-xl font-bold text-card-foreground">{phrase}</CardTitle>
                     </CardHeader>
                     <CardContent className="relative z-10">
@@ -133,7 +142,8 @@ const AlphabetGuide = () => {
                       <img 
                         src={img} 
                         alt={phrase}
-                        className="w-32 h-32 object-contain drop-shadow-md"
+                        // FIXED: Changed size to w-24 h-24 to match Alphabet cards (was w-32 h-32)
+                        className="w-24 h-24 object-contain drop-shadow-md"
                         onError={(e) => { e.currentTarget.style.display = 'none'; }}
                       />
                       <span className="mt-2 text-[10px] uppercase tracking-wider text-muted-foreground">Click to enlarge</span>
@@ -164,7 +174,6 @@ const AlphabetGuide = () => {
                 >
                   <CardHeader className="pb-2 md:pb-3 relative z-10">
                     <div className="flex items-center justify-between">
-                      {/* FIXED: text-white -> text-card-foreground */}
                       <CardTitle className="text-2xl md:text-3xl font-bold text-card-foreground">{letter}</CardTitle>
                       {!isStatic(letter) && (
                         <Badge variant="outline" className="text-[10px] md:text-xs border-primary text-primary">
@@ -197,7 +206,6 @@ const AlphabetGuide = () => {
 
       {/* --- POPUP DIALOG (MODAL) --- */}
       <Dialog open={!!selectedItem} onOpenChange={(open) => !open && setSelectedItem(null)}>
-        {/* FIXED: Removed hardcoded bg-slate-900. Using bg-background/bg-card logic */}
         <DialogContent className="sm:max-w-md bg-background border-border text-foreground">
           <DialogHeader>
             <div className="flex items-center gap-4">
