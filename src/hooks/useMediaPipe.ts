@@ -16,20 +16,28 @@ export const useMediaPipe = () => {
 
     const initializeHandLandmarker = async () => {
       try {
+        // 🛠️ MOBILE OPTIMIZATION: Detect if user is on a phone
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
         const vision = await FilesetResolver.forVisionTasks(
           'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22-rc.20250304/wasm'
         );
 
         const landmarker = await HandLandmarker.createFromOptions(vision, {
           baseOptions: {
-            modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
+            // 🛠️ MOBILE OPTIMIZATION: Use the 'lite' model for faster processing on phones
+            modelAssetPath: isMobile 
+              ? 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task' 
+              : 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
             delegate: 'GPU'
           },
           runningMode: 'VIDEO',
-          numHands: 2,
-          minHandDetectionConfidence: 0.5,
-          minHandPresenceConfidence: 0.5,
-          minTrackingConfidence: 0.5
+          // 🛠️ MOBILE OPTIMIZATION: Reduce to 1 hand for Alphabet recognition to save 50% CPU/GPU power
+          numHands: isMobile ? 1 : 2, 
+          // 🛠️ MOBILE OPTIMIZATION: Adjust confidence to reduce "jittery" landmarks on mobile
+          minHandDetectionConfidence: isMobile ? 0.4 : 0.5,
+          minHandPresenceConfidence: isMobile ? 0.4 : 0.5,
+          minTrackingConfidence: isMobile ? 0.4 : 0.5
         });
 
         if (isMounted) {
@@ -80,20 +88,21 @@ export const useMediaPipe = () => {
     for (let i = 0; i < results.landmarks.length; i++) {
       const landmarks = results.landmarks[i];
       
-      // Draw connections
       drawingUtils.drawConnectors(
         landmarks,
         HandLandmarker.HAND_CONNECTIONS,
-        { color: '#5B7C99', lineWidth: 3 }
+        { color: '#5B7C99', lineWidth: 2 } // 🛠️ Thinner lines for mobile
       );
       
-      // Draw landmarks
       drawingUtils.drawLandmarks(
         landmarks,
-        { color: '#00FF00', lineWidth: 1, radius: 4 }
+        { color: '#00FF00', lineWidth: 1, radius: isMobile ? 2 : 4 } // 🛠️ Smaller dots for mobile
       );
     }
   };
+
+  // Helper to check mobile inside drawLandmarks
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
   return {
     handLandmarker,
