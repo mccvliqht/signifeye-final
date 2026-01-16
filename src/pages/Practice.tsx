@@ -16,7 +16,7 @@ const Practice = () => {
         
         {/* LEFT: Camera Section */}
         {/* 🛠️ FIX: Reduced min-h-[45vh] to [35vh] for a shorter mobile camera height */}
-        <div className="relative border-r border-border bg-card min-h-[35vh] lg:min-h-0">
+        <div className="relative border-b lg:border-r border-border bg-card h-[40vh] lg:h-full overflow-hidden">
           <CameraView />
         </div>
 
