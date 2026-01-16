@@ -11,16 +11,17 @@ const Practice = () => {
     <div className="min-h-screen flex flex-col bg-background overflow-hidden">
       <TopBar onSettingsClick={() => setSettingsOpen(true)} />
       
-      {/* 🛠️ Widen Camera: Changed grid-cols-2 to a 70/30 split using 7fr and 3fr */}
+      {/* 🚀 Split the screen: 60/40 on large screens, stack on mobile */}
       <main className="flex-1 grid grid-cols-1 lg:grid-cols-[6fr_4fr] overflow-hidden">
         
-        {/* LEFT: Camera Section (Now takes up ~70%) */}
-        <div className="relative border-r border-border bg-card min-h-[45vh] lg:min-h-0">
-          <CameraView mode="alphabet" />
+        {/* LEFT: Camera Section */}
+        {/* 🛠️ FIX: Reduced min-h-[45vh] to [35vh] for a shorter mobile camera height */}
+        <div className="relative border-r border-border bg-card min-h-[35vh] lg:min-h-0">
+          <CameraView />
         </div>
 
-        {/* RIGHT: Practice Instructions & Feedback (Now takes up ~30%) */}
-        <div className="flex flex-col overflow-y-auto bg-background">
+        {/* RIGHT: Practice Instructions & Feedback */}
+        <div className="flex flex-col overflow-y-auto bg-background h-full">
           <PracticeMode />
         </div>
         
