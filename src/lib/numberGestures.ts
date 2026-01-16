@@ -73,7 +73,7 @@ for(let finger of [fp.Finger.Index, fp.Finger.Middle, fp.Finger.Ring, fp.Finger.
 }
 
 // Export as a single array for easy use in the estimator
-export const NumberGestures = [
+export const AllNumberGestures = [
     OneGesture, TwoGesture, ThreeGesture, FourGesture, FiveGesture,
     SixGesture, SevenGesture, EightGesture, NineGesture, TenGesture
 ];

@@ -4,13 +4,14 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useApp } from '@/contexts/AppContext';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { BookOpen, Type } from 'lucide-react'; // Added icons for better aesthetics
+import { BookOpen, Type, Hash } from 'lucide-react'; // 1. Added Hash icon
 
 const AlphabetGuide = () => {
   const { settings } = useApp();
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+  // 2. Added Numbers List
+  const numbers = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
   
-  // 1. Updated List
   const rawPhrases = [
     'Hello', 'I love you', 'Wait a Minute', 'Yes', 'No', 'Good',
     'Water', 'Peace', 'Father', 'Mother', 'Fine', 'Call Me',
@@ -23,6 +24,7 @@ const AlphabetGuide = () => {
 
   const getSignDescription = (sign: string) => {
     const descriptions: Record<string, string> = {
+      // --- ALPHABET ---
       A: 'Closed fist with thumb alongside',
       B: 'Flat hand, fingers together, thumb across palm',
       C: 'Curved hand forming C shape',
@@ -50,6 +52,19 @@ const AlphabetGuide = () => {
       Y: 'Thumb and pinky extended',
       Z: 'Index finger traces Z in air',
       
+      // --- NUMBERS (1-10) ---
+      '1': 'Index finger pointing straight up.',
+      '2': 'Index and middle fingers pointing up (V shape).',
+      '3': 'Thumb, index, and middle fingers extended (ASL style).',
+      '4': 'Four fingers extended up, thumb tucked in.',
+      '5': 'Open hand, all five fingers extended.',
+      '6': 'Pinky finger touching the thumb, other three fingers up.',
+      '7': 'Ring finger touching the thumb.',
+      '8': 'Middle finger touching the thumb.',
+      '9': 'Index finger touching the thumb (Similar to F).',
+      '10': 'Thumb extended pointing up, shaking/wiggling back and forth.',
+
+      // --- PHRASES ---
       'Hello': 'Open palm starting at forehead and moving outward like a salute.',
       'I love you': 'Thumb, index, and pinky fingers extended simultaneously.',
       'Wait a Minute': 'Point your index finger straight up with palm facing outward.',
@@ -73,6 +88,13 @@ const AlphabetGuide = () => {
   };
 
   const getImagePath = (sign: string) => {
+    // 3. Updated Image Logic for Numbers
+    if (!isNaN(Number(sign))) {
+        // Kapag number (1-10), hanapin sa /signs/numbers/ folder
+        // Use .jpg or .png depending on your files. Defaulting to .png based on previous convo
+        return `/signs/numbers/${sign}.jpg`; 
+    }
+
     switch (sign) {
         case 'I love you': return '/signs/words/iloveyou.jpg';
         case 'Water': return '/signs/words/water.jpg';
@@ -92,12 +114,13 @@ const AlphabetGuide = () => {
         case 'Hello': return '/signs/words/hello.jpg';
         case 'Wait a Minute': return '/signs/words/wait.jpg';
         case 'Good': return '/signs/words/good.jpg';
+        // Fallback for Phrases
         default: return `/signs/words/${sign.replace(/\s+/g, '')}.jpg`;
     }
   };
 
   const isStatic = (letter: string) => {
-    return !['J', 'Z'].includes(letter);
+    return !['J', 'Z', '10', 'Yes', 'No'].includes(letter);
   };
 
   return (
@@ -128,7 +151,6 @@ const AlphabetGuide = () => {
                return (
                   <Card 
                     key={phrase} 
-                    // FIXED: Added h-[180px] to match Alphabet cards
                     className="group relative overflow-hidden cursor-pointer border border-border bg-card hover:border-primary transition-all hover:shadow-md h-[180px]"
                     onClick={() => setSelectedItem({ title: phrase, desc, image: img })}
                   >
@@ -145,14 +167,62 @@ const AlphabetGuide = () => {
                       <img 
                         src={img} 
                         alt={phrase}
-                        // FIXED: Changed size to w-24 h-24 to match Alphabet cards (was w-32 h-32)
                         className="w-24 h-24 object-contain drop-shadow-md"
                         onError={(e) => { e.currentTarget.style.display = 'none'; }}
                       />
-                      <span className="mt-2 text-[10px] uppercase tracking-wider text-muted-foreground">Click to enlarge</span>
+                      <span className="mt-2 text-[10px] uppercase tracking-wider text-muted-foreground">Click to view</span>
                     </div>
                   </Card>
                );
+            })}
+          </div>
+        </div>
+
+        {/* --- NUMBERS SECTION (NEW!) --- */}
+        <div className="mb-10">
+          <div className="flex items-center gap-2 mb-4">
+             <Hash className="w-5 h-5 text-primary" />
+             <h3 className="text-lg md:text-xl font-semibold">Numbers</h3>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {numbers.map((num) => {
+               const desc = getSignDescription(num);
+               const img = getImagePath(num); 
+
+               return (
+                <Card 
+                  key={num} 
+                  className="group relative overflow-hidden cursor-pointer border border-border bg-card hover:border-primary transition-all hover:shadow-md h-[180px]"
+                  onClick={() => setSelectedItem({ title: `Number ${num}`, desc, image: img })}
+                >
+                  <CardHeader className="pb-2 md:pb-3 relative z-10">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-2xl md:text-3xl font-bold text-card-foreground">{num}</CardTitle>
+                      {!isStatic(num) && (
+                        <Badge variant="outline" className="text-[10px] md:text-xs border-primary text-primary">
+                          Motion
+                        </Badge>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="relative z-10">
+                    <CardDescription className="text-xs md:text-sm leading-relaxed line-clamp-3 text-muted-foreground">
+                      {desc}
+                    </CardDescription>
+                  </CardContent>
+
+                  <div className="absolute inset-0 bg-background/95 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20">
+                      <img 
+                        src={img} 
+                        alt={num}
+                        className="w-24 h-24 object-contain drop-shadow-md"
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                      />
+                      <span className="mt-2 text-[10px] uppercase tracking-wider text-muted-foreground">Click to View</span>
+                  </div>
+                </Card>
+              );
             })}
           </div>
         </div>
@@ -167,7 +237,7 @@ const AlphabetGuide = () => {
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {alphabet.map((letter) => {
                const desc = getSignDescription(letter);
-               const img = `/signs/${letter}.jpg`; 
+               const img = `/signs/letters/${letter}.jpg`; 
 
                return (
                 <Card 

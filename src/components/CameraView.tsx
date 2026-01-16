@@ -8,14 +8,17 @@ import { useSpeechSynthesis } from '@/hooks/useSpeechSynthesis';
 import { Badge } from '@/components/ui/badge';
 
 interface CameraViewProps {
-  mode?: 'phrases' | 'alphabet';
+  practiceMode?: 'alphabet' | 'numbers' | 'phrases'; 
 }
 
-const CameraView = ({ mode = 'phrases' }: CameraViewProps) => {
+const CameraView = ({ practiceMode = 'alphabet' }: CameraViewProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameRef = useRef<number | null>(null);
   
+  // 👇 1. SAFETY LOCK: Ito ang pipigil sa ghost updates
+  const isMountedRef = useRef(true);
+
   const { 
     isRecognizing, 
     setIsRecognizing, 
@@ -33,7 +36,9 @@ const CameraView = ({ mode = 'phrases' }: CameraViewProps) => {
   
   const streamRef = useRef<MediaStream | null>(null);
   const { detectHands, drawLandmarks, isLoading: mediaPipeLoading } = useMediaPipe();
-  const { recognizeSign, isLoading: modelLoading, resetLastPrediction } = useSignRecognition(settings.language, mode);
+  
+  const { recognizeSign, isLoading: modelLoading, resetLastPrediction } = useSignRecognition(settings.language, practiceMode);
+  
   const { speak, isSupported: speechSupported } = useSpeechSynthesis();
   
   const [fps, setFps] = useState(0);
@@ -50,8 +55,17 @@ const CameraView = ({ mode = 'phrases' }: CameraViewProps) => {
     recognizingRef.current = isRecognizing;
   }, [isRecognizing]);
 
+  // Restart logic when mode changes
   useEffect(() => {
+      resetLastPrediction();
+      setTopPredictions([]);
+  }, [practiceMode, resetLastPrediction]);
+
+  // 👇 2. SETUP & CLEANUP: Set isMounted to false pag-alis
+  useEffect(() => {
+    isMountedRef.current = true;
     return () => {
+      isMountedRef.current = false; // LOCK NA PAG-ALIS 🔒
       if (streamRef.current) streamRef.current.getTracks().forEach(track => track.stop());
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
     };
@@ -62,6 +76,9 @@ const CameraView = ({ mode = 'phrases' }: CameraViewProps) => {
   }, [outputText, resetLastPrediction]);
 
   const handleRecognition = async (recognition: RecognitionResult) => {
+    // 👇 CHECK LOCK: Kung wala na sa screen, stop na!
+    if (!isMountedRef.current) return;
+
     const now = Date.now();
     const { sign, confidence, allPredictions } = recognition;
     if (allPredictions) setTopPredictions(allPredictions);
@@ -77,7 +94,9 @@ const CameraView = ({ mode = 'phrases' }: CameraViewProps) => {
     const recentSigns = predictionsBufferRef.current.filter(p => p.sign === sign);
     if (recentSigns.length >= 1) {
       const avgConfidence = recentSigns.reduce((sum, p) => sum + p.confidence, 0) / recentSigns.length;
-      if (avgConfidence >= 0.55 && sign !== lastEmittedRef.current) {
+      
+      // 👇 CHECK LOCK ULIT: Bago mag-update ng Global State
+      if (avgConfidence >= 0.55 && sign !== lastEmittedRef.current && isMountedRef.current) {
         lastEmittedRef.current = sign;
         setOutputText(outputText ? `${outputText}${sign}` : sign);
         predictionsBufferRef.current = [];
@@ -87,8 +106,11 @@ const CameraView = ({ mode = 'phrases' }: CameraViewProps) => {
   };
 
   const processFrame = async () => {
-    if (!videoRef.current || !canvasRef.current || !recognizingRef.current) {
-      if (recognizingRef.current) animationFrameRef.current = requestAnimationFrame(processFrame);
+    // 👇 CHECK LOCK
+    if (!isMountedRef.current || !videoRef.current || !canvasRef.current || !recognizingRef.current) {
+      if (recognizingRef.current && isMountedRef.current) {
+         animationFrameRef.current = requestAnimationFrame(processFrame);
+      }
       return;
     }
 
@@ -117,23 +139,28 @@ const CameraView = ({ mode = 'phrases' }: CameraViewProps) => {
           lastClassifyAtRef.current = nowTs;
           try {
             const recognition = await recognizeSign(results.landmarks);
-            if (recognition) await handleRecognition(recognition);
+            // 👇 CHECK LOCK BAGO I-PROCESS
+            if (recognition && isMountedRef.current) await handleRecognition(recognition);
           } finally {
-            classifyBusyRef.current = false;
+            if (isMountedRef.current) classifyBusyRef.current = false;
           }
         }
       } else {
-        setTopPredictions([]);
+        if (isMountedRef.current) setTopPredictions([]);
       }
     }
 
     frameCountRef.current++;
     if (now - lastFrameTimeRef.current >= 1000) {
-      setFps(frameCountRef.current);
+      if (isMountedRef.current) setFps(frameCountRef.current);
       frameCountRef.current = 0;
       lastFrameTimeRef.current = now;
     }
-    animationFrameRef.current = requestAnimationFrame(processFrame);
+    
+    // 👇 CHECK LOCK SA LOOB NG REQUEST ANIMATION FRAME
+    if (isMountedRef.current) {
+        animationFrameRef.current = requestAnimationFrame(processFrame);
+    }
   };
 
   const startCamera = async () => {
@@ -142,14 +169,16 @@ const CameraView = ({ mode = 'phrases' }: CameraViewProps) => {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { width: { ideal: 1280 }, height: { ideal: 720 } }
       });
-      if (videoRef.current) {
+      if (videoRef.current && isMountedRef.current) {
         videoRef.current.srcObject = stream;
         streamRef.current = stream;
         videoRef.current.onloadedmetadata = () => {
-          videoRef.current!.play();
-          setIsRecognizing(true);
-          recognizingRef.current = true;
-          processFrame();
+          if (isMountedRef.current) { // Double check
+            videoRef.current!.play();
+            setIsRecognizing(true);
+            recognizingRef.current = true;
+            processFrame();
+          }
         };
       }
     } catch (e) { console.error(e); }
@@ -191,7 +220,6 @@ const CameraView = ({ mode = 'phrases' }: CameraViewProps) => {
                   variant="secondary" 
                   className="bg-black/60 text-white backdrop-blur-sm flex justify-between gap-3 w-fit min-w-[85px] border-none py-0.5"
                   style={{ 
-                    // 🛠️ UPDATE: Highlight changed to Green for better visual feedback
                     borderLeft: i === 0 && pred.confidence > 0.5 ? '3px solid #22c55e' : 'none',
                     opacity: i === 0 ? 1 : 0.7 
                   }}
@@ -202,9 +230,8 @@ const CameraView = ({ mode = 'phrases' }: CameraViewProps) => {
               ))}
             </div>
 
-            {/* 🛠️ UPDATE: Mode color changed to a subtle Slate/Gray for a better aesthetic */}
             <Badge variant="secondary" className="bg-slate-700/80 text-white text-[9px] uppercase font-black tracking-widest px-2 py-0.5 border-none w-fit backdrop-blur-sm shadow-md">
-              MODE: {mode}
+              MODE: {practiceMode}
             </Badge>
           </div>
         )}

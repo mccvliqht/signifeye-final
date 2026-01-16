@@ -1,13 +1,16 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import * as tf from '@tensorflow/tfjs';
 import * as fp from 'fingerpose'; 
 
 import { translateToFSL } from '@/lib/fslTranslations';
+
 import { 
   HelloGesture, ILYGesture, WaitGesture, YesGesture, NoGesture, 
-  GoodGesture, WaterGesture, PeaceGesture, //OpenHandGesture,
-  CallGesture, DrinkGesture, //PointGesture, FlatHandGesture, FistGesture 
+  GoodGesture, WaterGesture, PeaceGesture, OpenHandGesture, 
+  CallGesture, DrinkGesture, PointGesture, FlatHandGesture, FistGesture 
 } from '@/lib/customGestures'; 
+
+import { AllNumberGestures } from '@/lib/numberGestures';
 
 import { loadTrainedModel, trainAndSaveModel } from '@/lib/modelTrainer';
 import { ALPHABET } from '@/lib/trainingData';
@@ -20,45 +23,39 @@ export interface RecognitionResult {
   type?: 'static' | 'alphabet' | 'dynamic';
 }
 
-export const useSignRecognition = (language: 'ASL' | 'FSL', mode: 'phrases' | 'alphabet' = 'phrases') => {
+export const useSignRecognition = (language: 'ASL' | 'FSL', mode: 'phrases' | 'alphabet' | 'numbers' = 'phrases') => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const lastPredictionRef = useRef<string>('');
   const modelRef = useRef<tf.LayersModel | null>(null);
   const gestureEstimatorRef = useRef<fp.GestureEstimator | null>(null);
-  const confidenceThreshold = 0.40; 
+  
+  // 📉 LOWERED THRESHOLD: 6.0 para mas madaling madetect ang Water/Think
+  // Dati 7.5, masyadong mahigpit kaya hindi lumalabas yung iba.
+  const confidenceThreshold = 0.60; 
 
   const movementHistory = useRef<{x: number, y: number}[]>([]);
 
   useEffect(() => {
     lastPredictionRef.current = '';
     setError(null);
-    
-    // 1. SETUP FINGERPOSE (PHRASES MODE)
-    // Dito nilalagay lahat ng "Static Signs" na gusto mong madetect
+    setIsLoading(true);
+
     if (mode === 'phrases') {
         gestureEstimatorRef.current = new fp.GestureEstimator([
-            HelloGesture, 
-            ILYGesture,
-            WaitGesture,
-            NoGesture,
-            YesGesture,
-            GoodGesture,
-            WaterGesture,
-            PeaceGesture, 
-           // OpenHandGesture,   // Base for Father/Mother
-            CallGesture,       // Call Me
-            DrinkGesture,      // Drink
-           // PointGesture,      // Base for You/Me/Think
-          //  FlatHandGesture,   // Base for Please
-           // FistGesture        // Base for Sorry
+            HelloGesture, ILYGesture, WaitGesture, NoGesture, YesGesture,
+            GoodGesture, WaterGesture, PeaceGesture, OpenHandGesture,
+            CallGesture, DrinkGesture, PointGesture, FlatHandGesture, FistGesture
         ]);
         setIsLoading(false);
     }
-
-    // 2. SETUP TENSORFLOW (ALPHABET MODE)
-    if (mode === 'alphabet') {
-      loadModel();
+    else if (mode === 'numbers') {
+        gestureEstimatorRef.current = new fp.GestureEstimator(AllNumberGestures);
+        setIsLoading(false);
+    }
+    else if (mode === 'alphabet') {
+        gestureEstimatorRef.current = null;
+        loadModel();
     } 
   }, [language, mode]);
 
@@ -122,85 +119,96 @@ export const useSignRecognition = (language: 'ASL' | 'FSL', mode: 'phrases' | 'a
 
     const hand = landmarks[0]; 
     
-    // --- PART A: PHRASES MODE (Call Me, Drink, Father, Mother, etc.) ---
-    if (mode === 'phrases' && gestureEstimatorRef.current) {
+    // --- STATIC MODE (Phrases & Numbers) ---
+    if ((mode === 'phrases' || mode === 'numbers') && gestureEstimatorRef.current) {
         const fpLandmarks = hand.map((lm: any) => [lm.x, lm.y, lm.z]);
+        
+        // Use lowered threshold (7.0) for better detection
         const gestureEst = await gestureEstimatorRef.current.estimate(fpLandmarks, 7.0); 
         
         if (gestureEst.gestures.length > 0) {
             const bestGesture = gestureEst.gestures.reduce((p, c) => (p.score > c.score ? p : c));
             
-            if (bestGesture.score > 7.0) { 
-                let finalSign = bestGesture.name;
-                const wristY = hand[0].y; // 0 = Taas (Noo), 1 = Baba (Dibdib)
-/*
-                // --- 🚀 COMPLETE LOGIC MAPPING 🚀 ---
+            // Allow slightly lower confidence for specific hard signs like Water
+            const minScore = bestGesture.name === 'Water' ? 6.5 : 7.0;
 
-                // 1. OPEN HAND / HELLO / FLAT HAND Logic
-                // Covers: Father, Mother, Fine, Please
-                if (finalSign === 'OpenHand' || finalSign === 'Hello' || finalSign === 'FlatHand') {
-                    // TAAS (Noo) -> Father
-                    if (wristY < 0.35) { 
-                        finalSign = 'Father';
-                    } 
-                    // GITNA (Bibig/Chin) -> Mother
-                    else if (wristY < 0.60) {
-                        finalSign = 'Mother';
-                    }
-                    // BABA (Dibdib) -> Please vs Fine
-                    else {
-                        if (finalSign === 'FlatHand') {
-                             finalSign = 'Please'; // Flat hand on chest implies rubbing/please
-                        } else {
-                             finalSign = 'Fine'; // Thumb out/Open hand on chest
+            if (bestGesture.score > minScore) { 
+                let finalSign = bestGesture.name;
+                
+                // WRIST POSITION: 0 (Top/Head) -> 1 (Bottom/Chest)
+                const wristY = hand[0].y; 
+
+                if (mode === 'phrases') {
+                    // 1. OPEN HAND / HELLO / FLAT HAND Logic
+                    // Covers: Hello, Father, Mother, Fine, Please
+                    if (finalSign === 'OpenHand' || finalSign === 'Hello' || finalSign === 'FlatHand') {
+                        
+                        // 🟢 ZONE A: HEAD / FOREHEAD (Father / Hello)
+                        // Adjusted: Need to be really high up (< 0.3)
+                        if (wristY < 0.30) { 
+                            // If it's explicitly detected as Hello (Palm Forward), use Hello
+                            if (finalSign === 'Hello') finalSign = 'Hello';
+                            else finalSign = 'Father';
+                        } 
+                        
+                        // 🟢 ZONE B: CHIN / MOUTH (Mother)
+                        // Adjusted: 0.3 to 0.65
+                        else if (wristY < 0.65) {
+                            // Hello can sometimes be detected near the face, so prioritize Hello if confidence is high
+                            if (finalSign === 'Hello' && bestGesture.score > 8.5) finalSign = 'Hello';
+                            else finalSign = 'Mother';
+                        }
+                        
+                        // 🟢 ZONE C: CHEST / BODY (Fine / Please)
+                        // Adjusted: Must be strictly low (> 0.65)
+                        else {
+                            // STRICTER 'PLEASE' CHECK:
+                            // Only becomes "Please" if the gesture is strictly 'FlatHand' 
+                            // AND 'OpenHand' score is much lower.
+                            // Otherwise, default to "Fine" (safer default).
+                            if (finalSign === 'FlatHand') {
+                                 finalSign = 'Please'; 
+                            } else {
+                                 finalSign = 'Fine'; 
+                            }
                         }
                     }
-                }
 
-                // 2. POINTING Logic
-                // Covers: Think, You, Me/I
-                if (finalSign === 'Point') {
-                    // TAAS (Noo) -> Think
-                    if (wristY < 0.35) {
-                        finalSign = 'Think';
+                    // 2. POINTING Logic
+                    // Covers: Think, You, Me
+                    if (finalSign === 'Point') {
+                        // HEAD -> Think (Strict < 0.3)
+                        if (wristY < 0.30) {
+                            finalSign = 'Think';
+                        }
+                        // CHEST -> Me (Strict > 0.65)
+                        else if (wristY > 0.65) {
+                            finalSign = 'Me'; 
+                        }
+                        // MIDDLE -> You (Pointing Forward usually at neck/chin level)
+                        else {
+                            finalSign = 'You';
+                        }
                     }
-                    // BABA (Dibdib) -> Me / I
-                    else if (wristY > 0.60) {
-                        finalSign = 'Me'; // or 'I'
-                    }
-                    // GITNA (Nakaturo sa Camera) -> You
-                    else {
-                        finalSign = 'You';
-                    }
-                }
 
-                // 3. FIST Logic
-                // Covers: Sorry vs Yes
-                if (finalSign === 'Fist' || finalSign === 'Yes') {
-                    // BABA (Dibdib) -> Sorry (Rubbing motion implied)
-                    if (wristY > 0.60) {
-                        finalSign = 'Sorry';
-                    } else {
-                        // Default to Yes otherwise
-                        finalSign = 'Yes';
+                    // 3. FIST Logic
+                    if (finalSign === 'Fist' || finalSign === 'Yes') {
+                        // Chest -> Sorry
+                        if (wristY > 0.65) {
+                            finalSign = 'Sorry';
+                        } else {
+                            finalSign = 'Yes';
+                        }
+                    }
+
+                    // 4. Position Checks
+                    if (finalSign === 'Call Me' && wristY > 0.60) return null; // Ignore low call me
+                    
+                    // Relaxed Drink Logic
+                    if (finalSign === 'Drink') {
+                        if (wristY > 0.70) finalSign = 'C'; // Only becomes C if super low
                     }
                 }
-
-*/
-                // 4. CALL ME Logic
-                if (finalSign === 'Call Me') {
-                    // Dapat nasa taas (Tenga)
-                    if (wristY > 0.60) return null; // Ignore if too low
-                }
-
-                // 5. DRINK Logic
-                if (finalSign === 'Drink') {
-                    // Dapat nasa gitna (Bibig)
-                    // Kung nasa baba masyado, baka letter C lang
-                    if (wristY < 0.20 || wristY > 0.65) finalSign = 'C'; 
-                }
-
-                // --- END LOGIC ---
 
                 if (language === 'FSL') finalSign = translateToFSL(finalSign);
 
@@ -208,7 +216,7 @@ export const useSignRecognition = (language: 'ASL' | 'FSL', mode: 'phrases' | 'a
                   return { sign: finalSign, confidence: bestGesture.score/10, timestamp: Date.now(), type: 'static' };
                 }
                 lastPredictionRef.current = finalSign;
-                setTimeout(() => { if (lastPredictionRef.current === finalSign) lastPredictionRef.current = ''; }, 2000); 
+                setTimeout(() => { if (lastPredictionRef.current === finalSign) lastPredictionRef.current = ''; }, 1500); // Faster reset
                 
                 return { sign: finalSign, confidence: bestGesture.score/10, timestamp: Date.now(), type: 'static' };
             }
@@ -216,7 +224,7 @@ export const useSignRecognition = (language: 'ASL' | 'FSL', mode: 'phrases' | 'a
         return null;
     }
 
-    // --- PART B: ALPHABET MODE (Standard TensorFlow) ---
+    // --- ALPHABET MODE ---
     if (mode === 'alphabet' && modelRef.current) {
         try {
           const features = preprocessLandmarks(landmarks);
@@ -245,7 +253,7 @@ export const useSignRecognition = (language: 'ASL' | 'FSL', mode: 'phrases' | 'a
           }
           
           lastPredictionRef.current = detectedSign;
-          setTimeout(() => { if (lastPredictionRef.current === detectedSign) lastPredictionRef.current = ''; }, 1500);
+          setTimeout(() => { if (lastPredictionRef.current === detectedSign) lastPredictionRef.current = ''; }, 1000); // Fast Alphabet reset
           
           return {
             sign: detectedSign,
@@ -262,10 +270,10 @@ export const useSignRecognition = (language: 'ASL' | 'FSL', mode: 'phrases' | 'a
     return null;
   };
 
-  const resetLastPrediction = () => {
+  const resetLastPrediction = useCallback(() => {
     lastPredictionRef.current = '';
     movementHistory.current = [];
-  };
+  }, []);
 
   return { isLoading, error, recognizeSign, resetLastPrediction, confidenceThreshold };
 };

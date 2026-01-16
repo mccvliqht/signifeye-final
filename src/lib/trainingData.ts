@@ -8,6 +8,16 @@ export interface TrainingExample {
 
 export const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
+export const NUMBERS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
+
+// Ito yung mga phrases na meron tayo sa gestures
+export const COMMON_PHRASES = [
+  'Hello', 'I love you', 'Wait a Minute', 'Yes', 'No', 
+  'Good', 'Water', 'Peace', 'Father', 'Mother', 
+  'Fine', 'Call Me', 'Drink', 'You', 'I/Me', 
+  'Think', 'Please', 'Sorry'
+];
+
 export const generateTrainingData = (language: 'ASL' | 'FSL'): TrainingExample[] => {
   const examples: TrainingExample[] = [];
   
