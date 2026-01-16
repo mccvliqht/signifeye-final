@@ -5,8 +5,8 @@ import * as fp from 'fingerpose';
 import { translateToFSL } from '@/lib/fslTranslations';
 import { 
   HelloGesture, ILYGesture, WaitGesture, YesGesture, NoGesture, 
-  GoodGesture, WaterGesture, PeaceGesture, OpenHandGesture,
-  CallGesture, DrinkGesture, PointGesture, FlatHandGesture, FistGesture 
+  GoodGesture, WaterGesture, PeaceGesture, //OpenHandGesture,
+  CallGesture, DrinkGesture, //PointGesture, FlatHandGesture, FistGesture 
 } from '@/lib/customGestures'; 
 
 import { loadTrainedModel, trainAndSaveModel } from '@/lib/modelTrainer';
@@ -46,12 +46,12 @@ export const useSignRecognition = (language: 'ASL' | 'FSL', mode: 'phrases' | 'a
             GoodGesture,
             WaterGesture,
             PeaceGesture, 
-            OpenHandGesture,   // Base for Father/Mother
+           // OpenHandGesture,   // Base for Father/Mother
             CallGesture,       // Call Me
             DrinkGesture,      // Drink
-            PointGesture,      // Base for You/Me/Think
-            FlatHandGesture,   // Base for Please
-            FistGesture        // Base for Sorry
+           // PointGesture,      // Base for You/Me/Think
+          //  FlatHandGesture,   // Base for Please
+           // FistGesture        // Base for Sorry
         ]);
         setIsLoading(false);
     }
@@ -133,7 +133,7 @@ export const useSignRecognition = (language: 'ASL' | 'FSL', mode: 'phrases' | 'a
             if (bestGesture.score > 7.0) { 
                 let finalSign = bestGesture.name;
                 const wristY = hand[0].y; // 0 = Taas (Noo), 1 = Baba (Dibdib)
-
+/*
                 // --- 🚀 COMPLETE LOGIC MAPPING 🚀 ---
 
                 // 1. OPEN HAND / HELLO / FLAT HAND Logic
@@ -186,6 +186,7 @@ export const useSignRecognition = (language: 'ASL' | 'FSL', mode: 'phrases' | 'a
                     }
                 }
 
+*/
                 // 4. CALL ME Logic
                 if (finalSign === 'Call Me') {
                     // Dapat nasa taas (Tenga)

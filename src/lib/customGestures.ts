@@ -114,6 +114,7 @@ PeaceGesture.addDirection(fp.Finger.Middle, fp.FingerDirection.DiagonalUpRight, 
     PeaceGesture.addCurl(finger, fp.FingerCurl.HalfCurl, 0.9); // Allow slight looseness
 });
 
+/*
 // --- 9-11. OPEN HAND (Base for Father, Mother, Fine) 🖐️ ---
 // Ito ang gagamitin nating base shape.
 export const OpenHandGesture = new fp.GestureDescription('OpenHand');
@@ -126,6 +127,7 @@ for(let finger of [fp.Finger.Thumb, fp.Finger.Index, fp.Finger.Middle, fp.Finger
     OpenHandGesture.addDirection(finger, fp.FingerDirection.DiagonalUpLeft, 0.5);
     OpenHandGesture.addDirection(finger, fp.FingerDirection.DiagonalUpRight, 0.5);
 }
+*/
 
 // --- 12. CALL ME (Y-Shape) 🤙 ---
 export const CallGesture = new fp.GestureDescription('Call Me');
@@ -143,6 +145,8 @@ export const DrinkGesture = new fp.GestureDescription('Drink');
 });
 DrinkGesture.addCurl(fp.Finger.Pinky, fp.FingerCurl.HalfCurl, 0.5);
 DrinkGesture.addCurl(fp.Finger.Pinky, fp.FingerCurl.FullCurl, 0.5);
+
+/*
 
 // --- 14-16. POINT (Index Only) - Base for You / Me / Think 👈 ---
 export const PointGesture = new fp.GestureDescription('Point');
@@ -168,4 +172,6 @@ for(let finger of [fp.Finger.Thumb, fp.Finger.Index, fp.Finger.Middle, fp.Finger
 export const FistGesture = new fp.GestureDescription('Fist');
 for(let finger of [fp.Finger.Index, fp.Finger.Middle, fp.Finger.Ring, fp.Finger.Pinky]) {
     FistGesture.addCurl(finger, fp.FingerCurl.FullCurl, 1.0);
-}
+
+}*/
+  
