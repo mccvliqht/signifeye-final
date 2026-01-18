@@ -12,7 +12,7 @@ interface TopBarProps {
 const TopBar = ({ onSettingsClick }: TopBarProps) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { installPrompt, setInstallPrompt } = useApp();
+  const { installPrompt } = useApp();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const navItems = [
@@ -37,13 +37,19 @@ const TopBar = ({ onSettingsClick }: TopBarProps) => {
             <Button 
               variant="ghost" 
               size="icon" 
-              className="rounded-lg bg-primary hover:bg-primary/90 shrink-0 h-9 w-9 flex items-center justify-center"
+              // Added 'md:pointer-events-none' para di mapindot sa laptop
+              className="rounded-lg bg-primary hover:bg-primary/90 shrink-0 h-9 w-9 flex items-center justify-center md:pointer-events-none"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
             >
               {isMenuOpen ? (
                 <X className="h-5 w-5 text-primary-foreground" />
               ) : (
-                <span className="text-primary-foreground font-bold text-lg leading-none">👁️</span>
+                // Make sure 'logo.png' exists in your public folder
+                <img 
+                  src="/favicon.png" 
+                  alt="SignifEye Logo" 
+                  className="h-6 w-6 object-contain" 
+                />
               )}
             </Button>
             <h1 className="text-xl font-bold tracking-tight hidden md:block">SignifEye</h1>
@@ -62,10 +68,14 @@ const TopBar = ({ onSettingsClick }: TopBarProps) => {
                   onClick={() => handleNavClick(item.path)}
                   className={cn(
                     'gap-2 px-3 h-9 text-sm font-semibold rounded-md transition-all',
-                    isActive ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
+                    // 👇 FIX: Explicitly set hover colors for both Active and Inactive states
+                    isActive 
+                      ? 'bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary' // Active: Stay Primary on Hover!
+                      : 'text-muted-foreground hover:text-primary hover:bg-secondary'        // Inactive: Become Primary on Hover
                   )}
                 >
-                  {Icon && <Icon className={cn("w-4 h-4", isActive ? "text-primary" : "text-muted-foreground")} />}
+                  {/* 👇 FIX: Use 'currentColor' so the icon follows the text color defined in the Button above */}
+                  {Icon && <Icon className="w-4 h-4 currentColor" />}
                   <span>{item.label}</span>
                 </Button>
               );
@@ -80,11 +90,9 @@ const TopBar = ({ onSettingsClick }: TopBarProps) => {
               variant="outline"
               size="sm"
               onClick={() => installPrompt.prompt()}
-              /* 🛠️ UPDATED: Added px-3 and kept text visible for mobile */
               className="gap-2 border-primary/50 text-primary h-9 px-3 text-xs font-bold flex items-center shadow-sm"
             >
               <Download className="w-4 h-4 shrink-0" />
-              {/* 🛠️ FIX: Removed 'hidden xs:inline' so text always shows */}
               <span className="whitespace-nowrap">Install App</span>
             </Button>
           )}
