@@ -9,11 +9,23 @@ ILYGesture.addCurl(fp.Finger.Pinky, fp.FingerCurl.NoCurl, 1.0);
 ILYGesture.addCurl(fp.Finger.Middle, fp.FingerCurl.FullCurl, 1.0);
 ILYGesture.addCurl(fp.Finger.Ring, fp.FingerCurl.FullCurl, 1.0);
 
-// --- 2. Hello ---
+// --- 2. Hello (B-Handshape Style) ---
 export const HelloGesture = new fp.GestureDescription('Hello');
-for (let finger of [fp.Finger.Thumb, fp.Finger.Index, fp.Finger.Middle, fp.Finger.Ring, fp.Finger.Pinky]) {
+
+// Ang apat na daliri (Index to Pinky) ay dapat tuwid na tuwid
+[fp.Finger.Index, fp.Finger.Middle, fp.Finger.Ring, fp.Finger.Pinky].forEach((finger) => {
+  // 1.0 confidence na walang curl (tuwid)
   HelloGesture.addCurl(finger, fp.FingerCurl.NoCurl, 1.0);
-}
+  
+  // Idagdag ito para masigurong "Vertical Up" o talagang nakatayo ang mga daliri
+  HelloGesture.addDirection(finger, fp.FingerDirection.VerticalUp, 1.0);
+  HelloGesture.addDirection(finger, fp.FingerDirection.DiagonalUpLeft, 0.5);
+  HelloGesture.addDirection(finger, fp.FingerDirection.DiagonalUpRight, 0.5);
+});
+
+// Ang Thumb naman ay dapat naka-curl o nakatiklop pabalagbag sa palad
+HelloGesture.addCurl(fp.Finger.Thumb, fp.FingerCurl.FullCurl, 1.0);
+HelloGesture.addCurl(fp.Finger.Thumb, fp.FingerCurl.HalfCurl, 0.5); // Allowance para sa bahagyang paggalaw
 
 // --- 3. WAIT (Index Up, Thumb Tucked) ---
 export const WaitGesture = new fp.GestureDescription('Wait a minute');
