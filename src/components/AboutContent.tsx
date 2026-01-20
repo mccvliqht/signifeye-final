@@ -84,7 +84,7 @@ const AboutContent = () => {
                     </li>
                     <li className="flex gap-2">
                       <span className="text-primary font-bold">•</span>
-                      <span><strong>Deliberate Motion:</strong> For moving signs like J and Z, use smooth movements.</span>
+                      <span><strong>Deliberate Motion:</strong> Maintain a steady or static hand position for all signs.</span>
                     </li>
                   </ul>
                 </CardContent>
