@@ -16,8 +16,8 @@ const TopBar = ({ onSettingsClick }: TopBarProps) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const navItems = [
-    { path: '/about', label: 'About', icon: Info },
-    { path: '/', label: 'Recognize', icon: Eye },
+    { path: '/', label: 'About', icon: Info },
+    { path: '/recognize', label: 'Recognize', icon: Eye },
     { path: '/guide', label: 'Guide', icon: BookOpen },
     { path: '/practice', label: 'Practice', icon: Target },
   ];
@@ -46,7 +46,7 @@ const TopBar = ({ onSettingsClick }: TopBarProps) => {
               ) : (
                 // Make sure 'logo.png' exists in your public folder
                 <img 
-                  src="/favicon.png" 
+                  src="/main-logo.png" 
                   alt="SignifEye Logo" 
                   className="h-6 w-6 object-contain" 
                 />
