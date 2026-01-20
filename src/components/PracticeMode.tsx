@@ -75,7 +75,7 @@ const PracticeMode = ({ mode, setMode }: PracticeModeProps) => {
       }, 3000); 
       return () => clearTimeout(checkTimer);
     }
-  }, [outputText, targetSign, isProcessing, feedback, isWarmingUp]); // Added isWarmingUp dependency
+  }, [outputText, targetSign, isProcessing, feedback, isWarmingUp]); 
 
   const handleCorrect = () => {
       setIsProcessing(true);
@@ -141,18 +141,19 @@ const PracticeMode = ({ mode, setMode }: PracticeModeProps) => {
   const accuracy = attempts > 0 ? Math.round((correct / attempts) * 100) : 0;
 
   return (
-    <div className="flex flex-col h-full p-3 md:p-6 gap-3 md:gap-6 bg-background">
+    // 📱 ADJUSTED: Reduced padding (p-2) for mobile to save space
+    <div className="flex flex-col h-full p-2 md:p-6 gap-2 md:gap-6 bg-background">
       
       {/* Header with Dropdown */}
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-2 md:gap-4 shrink-0">
         <div className="flex justify-between items-start">
           <div>
-            <h2 className="text-xl md:text-2xl font-bold text-foreground leading-tight">Practice Arena</h2>
+            <h2 className="text-lg md:text-2xl font-bold text-foreground leading-tight">Practice Arena</h2>
             <p className="text-[10px] md:text-sm text-muted-foreground">Select a mode and mimic the sign.</p>
           </div>
           
           <Select value={mode} onValueChange={(val: any) => setMode(val)}>
-            <SelectTrigger className="w-[140px] md:w-[180px] h-8 md:h-10 text-xs md:text-sm bg-card border-primary/20">
+            <SelectTrigger className="w-[130px] md:w-[180px] h-8 md:h-10 text-xs md:text-sm bg-card border-primary/20">
               <div className="flex items-center gap-2">
                  <Dumbbell className="w-3 h-3 md:w-4 md:h-4 text-primary" />
                  <SelectValue placeholder="Select Mode" />
@@ -167,45 +168,47 @@ const PracticeMode = ({ mode, setMode }: PracticeModeProps) => {
         </div>
       </div>
 
-      {/* Target Character Card */}
-      <Card className={`border-2 transition-all duration-500 shadow-lg flex-1 flex flex-col justify-center ${
+      {/* Target Character Card - COMPACT FOR MOBILE */}
+      <Card className={`border-2 transition-all duration-500 shadow-lg flex-1 flex flex-col justify-center min-h-0 ${
         feedback === 'correct' ? 'border-green-500 bg-green-500/5' : 
         feedback === 'incorrect' ? 'border-red-500 bg-red-500/5' : 'border-border'
       }`}>
-        <CardHeader className="py-2">
+        <CardHeader className="py-1 md:py-2 shrink-0">
           <CardTitle className="text-center text-muted-foreground uppercase text-[9px] md:text-xs tracking-[0.2em]">Target {mode === 'phrases' ? 'Phrase' : 'Sign'}</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col items-center gap-4 pb-6">
+        
+        {/* 📱 ADJUSTED: Reduced padding bottom (pb-2) */}
+        <CardContent className="flex flex-col items-center gap-2 md:gap-4 pb-2 md:pb-6 flex-1 justify-center min-h-0">
           
-          {/* Target Sign Display */}
-          <div className={`font-black text-primary transition-all duration-300 text-center drop-shadow-sm ${
-              mode === 'phrases' ? 'text-4xl md:text-6xl px-2' : 'text-7xl md:text-9xl'
+          {/* Target Sign Display - SMALLER TEXT ON MOBILE (text-5xl) */}
+          <div className={`font-black text-primary transition-all duration-300 text-center drop-shadow-sm leading-none ${
+              mode === 'phrases' ? 'text-2xl md:text-6xl px-2' : 'text-6xl md:text-9xl'
             } ${isProcessing || isWarmingUp ? 'scale-90 opacity-50' : 'scale-100 opacity-100'}`}>
             {targetSign}
           </div>
           
-          <div className="h-8 flex items-center justify-center w-full"> 
+          <div className="h-6 md:h-8 flex items-center justify-center w-full shrink-0"> 
             {feedback === 'correct' && (
               <div className="flex items-center gap-2 text-green-500 animate-in zoom-in duration-300">
-                <CheckCircle2 className="w-6 h-6" />
-                <span className="font-bold text-lg">Correct!</span>
+                <CheckCircle2 className="w-5 h-5 md:w-6 md:h-6" />
+                <span className="font-bold text-sm md:text-lg">Correct!</span>
               </div>
             )}
             {feedback === 'incorrect' && (
               <div className="flex items-center gap-2 text-red-500 animate-in shake duration-300">
-                <XCircle className="w-6 h-6" />
-                <span className="font-bold text-lg">Try Again</span>
+                <XCircle className="w-5 h-5 md:w-6 md:h-6" />
+                <span className="font-bold text-sm md:text-lg">Try Again</span>
               </div>
             )}
             {/* Show "Get Ready..." during warm-up */}
             {isWarmingUp && !feedback && (
-                <Badge variant="outline" className="animate-pulse gap-1 bg-yellow-500/10 text-yellow-500 border-yellow-500/20">
+                <Badge variant="outline" className="animate-pulse gap-1 bg-yellow-500/10 text-yellow-500 border-yellow-500/20 text-[10px] md:text-xs">
                     <Timer className="w-3 h-3" /> Get Ready...
                 </Badge>
             )}
             {/* Show "Checking..." only when processing and NOT warming up */}
             {isProcessing && !feedback && !isWarmingUp && (
-                <Badge variant="outline" className="animate-pulse gap-1 bg-primary/10 text-primary border-primary/20">
+                <Badge variant="outline" className="animate-pulse gap-1 bg-primary/10 text-primary border-primary/20 text-[10px] md:text-xs">
                     <Timer className="w-3 h-3" /> Checking...
                 </Badge>
             )}
@@ -213,24 +216,25 @@ const PracticeMode = ({ mode, setMode }: PracticeModeProps) => {
         </CardContent>
       </Card>
 
-      {/* Accuracy & Controls */}
-      <div className="mt-auto space-y-3">
+      {/* Accuracy & Controls - COMPACT BUTTONS */}
+      <div className="mt-auto space-y-2 md:space-y-3 shrink-0">
         <Card className="bg-card/50 border-none shadow-inner">
-            <CardContent className="py-3 flex justify-between items-center">
-                <span className="text-xs font-bold text-muted-foreground uppercase">Accuracy</span>
-                <div className="flex items-center gap-3">
-                    <Progress value={accuracy} className="w-24 md:w-32 h-2 bg-muted" />
-                    <span className={`text-lg font-black ${accuracy > 80 ? 'text-green-500' : 'text-primary'}`}>{accuracy}%</span>
+            <CardContent className="py-2 md:py-3 flex justify-between items-center">
+                <span className="text-[10px] md:text-xs font-bold text-muted-foreground uppercase">Accuracy</span>
+                <div className="flex items-center gap-2 md:gap-3">
+                    <Progress value={accuracy} className="w-20 md:w-32 h-1.5 md:h-2 bg-muted" />
+                    <span className={`text-sm md:text-lg font-black ${accuracy > 80 ? 'text-green-500' : 'text-primary'}`}>{accuracy}%</span>
                 </div>
             </CardContent>
         </Card>
 
         <div className="flex gap-2">
-            <Button onClick={generateNewSign} variant="secondary" className="flex-1 h-12 rounded-xl font-bold gap-2 shadow-md">
-            <RefreshCw className="w-4 h-4" /> Skip
+            {/* 📱 ADJUSTED: Reduced height (h-10) for mobile buttons */}
+            <Button onClick={generateNewSign} variant="secondary" className="flex-1 h-10 md:h-12 rounded-xl font-bold gap-2 shadow-md text-xs md:text-sm">
+            <RefreshCw className="w-3 h-3 md:w-4 md:h-4" /> Skip
             </Button>
-            <Button onClick={resetPractice} variant="outline" className="flex-1 h-12 rounded-xl font-bold gap-2 shadow-sm">
-            <RotateCcw className="w-4 h-4" /> Reset
+            <Button onClick={resetPractice} variant="outline" className="flex-1 h-10 md:h-12 rounded-xl font-bold gap-2 shadow-sm text-xs md:text-sm">
+            <RotateCcw className="w-3 h-3 md:w-4 md:h-4" /> Reset
             </Button>
         </div>
       </div>

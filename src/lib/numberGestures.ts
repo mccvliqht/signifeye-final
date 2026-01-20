@@ -1,69 +1,96 @@
 import * as fp from 'fingerpose';
 
-// --- Numbers 1-5 ---
+import { Finger, FingerCurl, FingerDirection, GestureDescription } from 'fingerpose';
 
-export const OneGesture = new fp.GestureDescription('1');
-OneGesture.addCurl(fp.Finger.Index, fp.FingerCurl.NoCurl, 1.0);
-OneGesture.addDirection(fp.Finger.Index, fp.FingerDirection.VerticalUp, 1.0);
-for(let finger of [fp.Finger.Middle, fp.Finger.Ring, fp.Finger.Pinky, fp.Finger.Thumb]) {
-    OneGesture.addCurl(finger, fp.FingerCurl.FullCurl, 1.0);
+// --- NUMBER 0 ---
+export const ZeroGesture = new GestureDescription('0');
+ZeroGesture.addCurl(Finger.Thumb, FingerCurl.NoCurl, 1.0);
+ZeroGesture.addCurl(Finger.Index, FingerCurl.HalfCurl, 0.5);
+ZeroGesture.addCurl(Finger.Index, FingerCurl.FullCurl, 0.5);
+ZeroGesture.addCurl(Finger.Middle, FingerCurl.FullCurl, 1.0);
+ZeroGesture.addCurl(Finger.Ring, FingerCurl.FullCurl, 1.0);
+ZeroGesture.addCurl(Finger.Pinky, FingerCurl.FullCurl, 1.0);
+
+// --- NUMBER 1 ---
+export const OneGesture = new GestureDescription('1');
+OneGesture.addCurl(Finger.Index, FingerCurl.NoCurl, 1.0);
+OneGesture.addCurl(Finger.Thumb, FingerCurl.FullCurl, 1.0);
+OneGesture.addCurl(Finger.Thumb, FingerCurl.HalfCurl, 0.8); // Allow slight loose thumb
+OneGesture.addCurl(Finger.Middle, FingerCurl.FullCurl, 1.0);
+OneGesture.addCurl(Finger.Ring, FingerCurl.FullCurl, 1.0);
+OneGesture.addCurl(Finger.Pinky, FingerCurl.FullCurl, 1.0);
+
+// --- NUMBER 2 ---
+export const TwoGesture = new GestureDescription('2');
+TwoGesture.addCurl(Finger.Index, FingerCurl.NoCurl, 1.0);
+TwoGesture.addCurl(Finger.Middle, FingerCurl.NoCurl, 1.0);
+TwoGesture.addCurl(Finger.Thumb, FingerCurl.FullCurl, 1.0);
+TwoGesture.addCurl(Finger.Thumb, FingerCurl.HalfCurl, 0.8);
+TwoGesture.addCurl(Finger.Ring, FingerCurl.FullCurl, 1.0);
+TwoGesture.addCurl(Finger.Pinky, FingerCurl.FullCurl, 1.0);
+
+// --- NUMBER 3 ---
+export const ThreeGesture = new GestureDescription('3');
+ThreeGesture.addCurl(Finger.Thumb, FingerCurl.NoCurl, 1.0);
+ThreeGesture.addCurl(Finger.Index, FingerCurl.NoCurl, 1.0);
+ThreeGesture.addCurl(Finger.Middle, FingerCurl.NoCurl, 1.0);
+ThreeGesture.addCurl(Finger.Ring, FingerCurl.FullCurl, 1.0);
+ThreeGesture.addCurl(Finger.Pinky, FingerCurl.FullCurl, 1.0);
+
+// --- NUMBER 4 (THE FIX IS HERE) ---
+export const FourGesture = new GestureDescription('4');
+FourGesture.addCurl(Finger.Index, FingerCurl.NoCurl, 1.0);
+FourGesture.addCurl(Finger.Middle, FingerCurl.NoCurl, 1.0);
+FourGesture.addCurl(Finger.Ring, FingerCurl.NoCurl, 1.0);
+FourGesture.addCurl(Finger.Pinky, FingerCurl.NoCurl, 1.0);
+// Fix: Allow thumb to be FullCurl (strict) OR HalfCurl (lenient)
+// Minsan kasi hindi super tago ang thumb natin pag nagfo-four
+FourGesture.addCurl(Finger.Thumb, FingerCurl.FullCurl, 1.0); 
+FourGesture.addCurl(Finger.Thumb, FingerCurl.HalfCurl, 0.9); 
+
+// --- NUMBER 5 (Adjusted to avoid conflict with 4) ---
+export const FiveGesture = new GestureDescription('5');
+for (let finger of [Finger.Thumb, Finger.Index, Finger.Middle, Finger.Ring, Finger.Pinky]) {
+    FiveGesture.addCurl(finger, FingerCurl.NoCurl, 1.0);
 }
+// Strict rule: Thumb MUST be straight for 5, to distinguish from 4
+FiveGesture.addDirection(Finger.Thumb, FingerDirection.VerticalUp, 0.5);
+FiveGesture.addDirection(Finger.Thumb, FingerDirection.DiagonalUpLeft, 0.5);
+FiveGesture.addDirection(Finger.Thumb, FingerDirection.DiagonalUpRight, 0.5);
 
-export const TwoGesture = new fp.GestureDescription('2');
-TwoGesture.addCurl(fp.Finger.Index, fp.FingerCurl.NoCurl, 1.0);
-TwoGesture.addCurl(fp.Finger.Middle, fp.FingerCurl.NoCurl, 1.0);
-for(let finger of [fp.Finger.Ring, fp.Finger.Pinky, fp.Finger.Thumb]) {
-    TwoGesture.addCurl(finger, fp.FingerCurl.FullCurl, 1.0);
-}
 
-export const ThreeGesture = new fp.GestureDescription('3');
-ThreeGesture.addCurl(fp.Finger.Thumb, fp.FingerCurl.NoCurl, 1.0);
-ThreeGesture.addCurl(fp.Finger.Index, fp.FingerCurl.NoCurl, 1.0);
-ThreeGesture.addCurl(fp.Finger.Middle, fp.FingerCurl.NoCurl, 1.0);
-for(let finger of [fp.Finger.Ring, fp.Finger.Pinky]) {
-    ThreeGesture.addCurl(finger, fp.FingerCurl.FullCurl, 1.0);
-}
+// --- NUMBER 6 ---
+export const SixGesture = new GestureDescription('6');
+SixGesture.addCurl(Finger.Index, FingerCurl.NoCurl, 1.0);
+SixGesture.addCurl(Finger.Middle, FingerCurl.NoCurl, 1.0);
+SixGesture.addCurl(Finger.Ring, FingerCurl.NoCurl, 1.0);
+SixGesture.addCurl(Finger.Pinky, FingerCurl.FullCurl, 1.0);
+SixGesture.addCurl(Finger.Thumb, FingerCurl.FullCurl, 1.0); // Touching pinky
 
-export const FourGesture = new fp.GestureDescription('4');
-for(let finger of [fp.Finger.Index, fp.Finger.Middle, fp.Finger.Ring, fp.Finger.Pinky]) {
-    FourGesture.addCurl(finger, fp.FingerCurl.NoCurl, 1.0);
-}
-FourGesture.addCurl(fp.Finger.Thumb, fp.FingerCurl.FullCurl, 1.0);
+// --- NUMBER 7 ---
+export const SevenGesture = new GestureDescription('7');
+SevenGesture.addCurl(Finger.Index, FingerCurl.NoCurl, 1.0);
+SevenGesture.addCurl(Finger.Middle, FingerCurl.NoCurl, 1.0);
+SevenGesture.addCurl(Finger.Pinky, FingerCurl.NoCurl, 1.0);
+SevenGesture.addCurl(Finger.Ring, FingerCurl.FullCurl, 1.0); // Touching ring
+SevenGesture.addCurl(Finger.Thumb, FingerCurl.FullCurl, 1.0); // Touching ring
 
-export const FiveGesture = new fp.GestureDescription('5');
-for(let finger of [fp.Finger.Thumb, fp.Finger.Index, fp.Finger.Middle, fp.Finger.Ring, fp.Finger.Pinky]) {
-    FiveGesture.addCurl(finger, fp.FingerCurl.NoCurl, 1.0);
-}
+// --- NUMBER 8 ---
+export const EightGesture = new GestureDescription('8');
+EightGesture.addCurl(Finger.Index, FingerCurl.NoCurl, 1.0);
+EightGesture.addCurl(Finger.Ring, FingerCurl.NoCurl, 1.0);
+EightGesture.addCurl(Finger.Pinky, FingerCurl.NoCurl, 1.0);
+EightGesture.addCurl(Finger.Middle, FingerCurl.FullCurl, 1.0); // Touching middle
+EightGesture.addCurl(Finger.Thumb, FingerCurl.FullCurl, 1.0); // Touching middle
 
-// --- Numbers 6-10 ---
+// --- NUMBER 9 ---
+export const NineGesture = new GestureDescription('9');
+NineGesture.addCurl(Finger.Middle, FingerCurl.NoCurl, 1.0);
+NineGesture.addCurl(Finger.Ring, FingerCurl.NoCurl, 1.0);
+NineGesture.addCurl(Finger.Pinky, FingerCurl.NoCurl, 1.0);
+NineGesture.addCurl(Finger.Index, FingerCurl.FullCurl, 1.0); // Touching index
+NineGesture.addCurl(Finger.Thumb, FingerCurl.FullCurl, 1.0); // Touching index
 
-export const SixGesture = new fp.GestureDescription('6');
-SixGesture.addCurl(fp.Finger.Pinky, fp.FingerCurl.HalfCurl, 1.0);
-SixGesture.addCurl(fp.Finger.Thumb, fp.FingerCurl.HalfCurl, 1.0);
-for(let finger of [fp.Finger.Index, fp.Finger.Middle, fp.Finger.Ring]) {
-    SixGesture.addCurl(finger, fp.FingerCurl.NoCurl, 1.0);
-}
-
-export const SevenGesture = new fp.GestureDescription('7');
-SevenGesture.addCurl(fp.Finger.Ring, fp.FingerCurl.HalfCurl, 1.0);
-SevenGesture.addCurl(fp.Finger.Thumb, fp.FingerCurl.HalfCurl, 1.0);
-for(let finger of [fp.Finger.Index, fp.Finger.Middle, fp.Finger.Pinky]) {
-    SevenGesture.addCurl(finger, fp.FingerCurl.NoCurl, 1.0);
-}
-
-export const EightGesture = new fp.GestureDescription('8');
-EightGesture.addCurl(fp.Finger.Middle, fp.FingerCurl.HalfCurl, 1.0);
-EightGesture.addCurl(fp.Finger.Thumb, fp.FingerCurl.HalfCurl, 1.0);
-for(let finger of [fp.Finger.Index, fp.Finger.Ring, fp.Finger.Pinky]) {
-    EightGesture.addCurl(finger, fp.FingerCurl.NoCurl, 1.0);
-}
-
-export const NineGesture = new fp.GestureDescription('9');
-NineGesture.addCurl(fp.Finger.Index, fp.FingerCurl.HalfCurl, 1.0);
-NineGesture.addCurl(fp.Finger.Thumb, fp.FingerCurl.HalfCurl, 1.0);
-for(let finger of [fp.Finger.Middle, fp.Finger.Ring, fp.Finger.Pinky]) {
-    NineGesture.addCurl(finger, fp.FingerCurl.NoCurl, 1.0);
-}
 
 export const TenGesture = new fp.GestureDescription('10');
 TenGesture.addCurl(fp.Finger.Thumb, fp.FingerCurl.NoCurl, 1.0);

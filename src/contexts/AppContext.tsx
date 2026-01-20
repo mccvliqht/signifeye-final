@@ -21,9 +21,9 @@ interface AppContextType {
   clearOutput: () => void;
   mirrorCamera: boolean;
   toggleMirrorCamera: () => void;
-  // 🛠️ Added for persistent PWA installation
   installPrompt: any;
   setInstallPrompt: (value: any) => void;
+  isAppInstalled: boolean; // 👇 Added this helper
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -45,17 +45,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [outputText, setOutputText] = useState('');
   const [mirrorCamera, setMirrorCamera] = useState(true);
   
-  // 🛠️ Global state for the installation prompt
+  // PWA Install State
   const [installPrompt, setInstallPrompt] = useState<any>(null);
+  const [isAppInstalled, setIsAppInstalled] = useState(false); // 👇 Track installation status
 
-  // 🛠️ Persistent listener for PWA installation
+  // 1. 👇 DETECT STANDALONE MODE (Check if running as App)
+  useEffect(() => {
+    const checkStandalone = () => {
+      // Check if running in standalone mode (Chromium / iOS)
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+                           (window.navigator as any).standalone === true;
+      setIsAppInstalled(!!isStandalone);
+    };
+
+    checkStandalone();
+    
+    // Listen for changes
+    window.matchMedia('(display-mode: standalone)').addEventListener('change', checkStandalone);
+  }, []);
+
+  // 2. 👇 PWA INSTALL LISTENER
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault(); // Stop the default mini-infobar
-      setInstallPrompt(e); // Store event globally so it survives tab switches
+      setInstallPrompt(e); // Store event globally
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    
+    // If user successfully installs, update state immediately
+    window.addEventListener('appinstalled', () => {
+      setInstallPrompt(null);
+      setIsAppInstalled(true);
+    });
+
     return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
   }, []);
 
@@ -95,8 +118,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         clearOutput,
         mirrorCamera,
         toggleMirrorCamera,
-        installPrompt,    // 🛠️ Expose to App
-        setInstallPrompt, // 🛠️ Expose to App
+        // 👇 MAGIC LOGIC: If app is installed/standalone, force installPrompt to null.
+        // This automatically hides the button in your Landing Page/About Page.
+        installPrompt: isAppInstalled ? null : installPrompt, 
+        setInstallPrompt,
+        isAppInstalled,
       }}
     >
       {children}

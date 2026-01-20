@@ -143,7 +143,7 @@ const AlphabetGuide = () => {
              <h3 className="text-lg md:text-xl font-semibold">Common Phrases <span className="text-muted-foreground text-sm font-normal"></span></h3>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {commonPhrases.map((phrase) => {
                const desc = getSignDescription(phrase);
                const img = getImagePath(phrase);

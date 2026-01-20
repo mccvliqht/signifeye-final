@@ -32,16 +32,13 @@ const SettingsModal = ({ open, onOpenChange }: SettingsModalProps) => {
   const [tempSettings, setTempSettings] = useState(settings);
 
   const handleSave = () => {
-    // 1. Existing save logic
     updateSettings(tempSettings);
     
-    // 2. CRITICAL FIX: "Wake Up" the Speech Engine
-    // If the user selects 'speech', we play a silent clip to unlock the 22 voices
+    // Wake up speech engine logic
     if (tempSettings.outputMode === 'speech') {
       const wakeUpUtterance = new SpeechSynthesisUtterance("");
-      wakeUpUtterance.volume = 0; // Silent
+      wakeUpUtterance.volume = 0; 
       window.speechSynthesis.speak(wakeUpUtterance);
-      console.log("[SignifEye] Speech synthesis unlocked via user interaction.");
     }
 
     onOpenChange(false);
@@ -53,25 +50,28 @@ const SettingsModal = ({ open, onOpenChange }: SettingsModalProps) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle className="text-2xl">Settings</DialogTitle>
-          <DialogDescription>
-            Configure language, output, theme, and font size.
+      {/* 📱 MOBILE FIX: w-[90vw] (90% width), rounded-xl, compact padding */}
+      <DialogContent className="w-[90vw] max-w-[400px] rounded-xl sm:rounded-lg p-4 md:p-6 gap-4">
+        <DialogHeader className="pb-2">
+          <DialogTitle className="text-center text-lg md:text-xl font-bold">Settings</DialogTitle>
+          <DialogDescription className="text-center text-xs text-muted-foreground">
+            Configure language, output, and appearance.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
+        <div className="grid gap-4 py-2">
+          
           {/* Language Selection */}
-          <div className="space-y-2">
-            <Label htmlFor="language">Language</Label>
+          <div className="grid gap-2">
+            <Label htmlFor="language" className="text-xs md:text-sm font-semibold">Language</Label>
             <Select
               value={tempSettings.language}
               onValueChange={(value) =>
                 setTempSettings({ ...tempSettings, language: value as Language })
               }
             >
-              <SelectTrigger id="language">
+              {/* 📱 COMPACT TRIGGER: h-9 */}
+              <SelectTrigger id="language" className="h-9 text-xs md:text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -82,50 +82,51 @@ const SettingsModal = ({ open, onOpenChange }: SettingsModalProps) => {
           </div>
 
           {/* Output Mode */}
-          <div className="space-y-2">
-            <Label htmlFor="output">Output Mode</Label>
+          <div className="grid gap-2">
+            <Label htmlFor="output" className="text-xs md:text-sm font-semibold">Output Mode</Label>
             <Select
               value={tempSettings.outputMode}
               onValueChange={(value) =>
                 setTempSettings({ ...tempSettings, outputMode: value as OutputMode })
               }
             >
-              <SelectTrigger id="output">
+              <SelectTrigger id="output" className="h-9 text-xs md:text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="text">Text</SelectItem>
-                <SelectItem value="speech">Speech</SelectItem>
+                <SelectItem value="text">Text Only</SelectItem>
+                <SelectItem value="speech">Text & Speech</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           {/* Theme */}
-          <div className="space-y-2">
-            <Label htmlFor="theme">Theme</Label>
+          <div className="grid gap-2">
+            <Label htmlFor="theme" className="text-xs md:text-sm font-semibold">Theme</Label>
             <Select
               value={tempSettings.theme}
               onValueChange={(value) =>
                 setTempSettings({ ...tempSettings, theme: value as Theme })
               }
             >
-              <SelectTrigger id="theme">
+              <SelectTrigger id="theme" className="h-9 text-xs md:text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="light">Light</SelectItem>
-                <SelectItem value="dark">Dark</SelectItem>
+                <SelectItem value="light">Light Mode</SelectItem>
+                <SelectItem value="dark">Dark Mode</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           {/* Font Size */}
-          <div className="space-y-3">
+          <div className="grid gap-3 pt-2">
             <div className="flex items-center justify-between">
-              <Label>Font Size</Label>
-              <span className="text-sm text-muted-foreground">{tempSettings.fontSize}px</span>
+              <Label htmlFor="fontsize" className="text-xs md:text-sm font-semibold">Font Size</Label>
+              <span className="text-xs text-muted-foreground">{tempSettings.fontSize}px</span>
             </div>
             <Slider
+              id="fontsize"
               value={[tempSettings.fontSize]}
               onValueChange={([value]) =>
                 setTempSettings({ ...tempSettings, fontSize: value })
@@ -133,16 +134,19 @@ const SettingsModal = ({ open, onOpenChange }: SettingsModalProps) => {
               min={12}
               max={32}
               step={2}
-              className="w-full"
+              className="w-full py-1"
             />
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 mt-2">
+          {/* 📱 COMPACT BUTTONS */}
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="h-9 text-xs md:text-sm w-full">
             Cancel
           </Button>
-          <Button onClick={handleSave}>Save Changes</Button>
+          <Button onClick={handleSave} className="h-9 text-xs md:text-sm w-full">
+            Save Changes
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
