@@ -448,13 +448,20 @@ const CameraView = ({ practiceMode = 'alphabet', showPredictionList = false }: C
                     </div>
                 </SelectTrigger>
                 <SelectContent>
-                    {cameras.length === 0 && <SelectItem value="placeholder" disabled>No cameras</SelectItem>}
-                    {cameras.map((cam) => (
-                        <SelectItem key={cam.deviceId} value={cam.deviceId}>
-                            {cam.label || `Camera ${cam.deviceId.slice(0, 5)}...`}
+                {cameras.length === 0 && <SelectItem value="placeholder" disabled>No cameras found</SelectItem>}
+                
+                {cameras.map((cam, index) => {
+                    // SAFETY FIX: Kung walang ID, gawan ng fake ID para di mag-crash
+                    const safeId = cam.deviceId || `camera-${index}`;
+                    const safeLabel = cam.label || `Camera ${index + 1}`;
+
+                    return (
+                        <SelectItem key={safeId} value={safeId}>
+                            {safeLabel}
                         </SelectItem>
-                    ))}
-                </SelectContent>
+                    );
+                })}
+            </SelectContent>
             </Select>
 
             <TooltipProvider>
