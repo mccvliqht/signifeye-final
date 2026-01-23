@@ -85,15 +85,11 @@ const CameraView = ({ practiceMode = 'alphabet', showPredictionList = false }: C
   
   const { recognizeSign, isLoading: modelLoading, resetLastPrediction } = useSignRecognition(settings.language, practiceMode);
   
-// ---------------- PART 1 START ----------------
-  // 👇 FIX: Gumawa ng Ref para laging updated ang logic kahit umiikot ang loop
+  // Ref Logic (Kept as is, no changes)
   const recognizeSignRef = useRef(recognizeSign);
-
-  // Laging i-update ang Ref kapag nagbago ang recognizeSign (pag nagpalit ng mode)
   useEffect(() => {
     recognizeSignRef.current = recognizeSign;
   }, [recognizeSign]);
-  // ---------------- PART 1 END ----------------
 
   const { speak, isSupported: speechSupported } = useSpeechSynthesis();
   
@@ -262,11 +258,7 @@ const CameraView = ({ practiceMode = 'alphabet', showPredictionList = false }: C
                     classifyBusyRef.current = true;
                     lastClassifyAtRef.current = nowTs;
                     try {
-                        // ---------------- PART 2 FIX ----------------
-                        // 👇 Gamitin ang recognizeSignRef.current() imbes na recognizeSign()
-                        // Ito ang siguradong kukuha ng logic para sa Numbers/Phrases
                         const recognition = await recognizeSignRef.current(results.landmarks);
-                        // ---------------- PART 2 END ----------------
                         if (recognition && isMountedRef.current) await handleRecognition(recognition);
                     } catch (err) {
                         console.error(err);
@@ -325,7 +317,7 @@ const CameraView = ({ practiceMode = 'alphabet', showPredictionList = false }: C
       {/* 📹 Video Container */}
       <div className="relative flex-1 w-full min-h-0 rounded-xl overflow-hidden bg-card shadow-sm border border-border/50 group">
         
-        {/* VIDEO ELEMENT - Added 'absolute inset-0' to prevent resizing parent */}
+        {/* VIDEO ELEMENT */}
         <video 
           ref={videoRef} 
           autoPlay playsInline muted 
@@ -334,6 +326,7 @@ const CameraView = ({ practiceMode = 'alphabet', showPredictionList = false }: C
              lowLightMode && "brightness-150 contrast-125 saturate-110",
              isZoomed && "scale-[1.25]" 
           )}
+          // 📱 FIX: Simple Mirror Logic. If mirrorCamera is true, mirror everything (Front/Back).
           style={{ transform: mirrorCamera ? (isZoomed ? 'scaleX(-1) scale(1.25)' : 'scaleX(-1)') : (isZoomed ? 'scale(1.25)' : 'none') }} 
         />
         <canvas 
@@ -356,7 +349,6 @@ const CameraView = ({ practiceMode = 'alphabet', showPredictionList = false }: C
                            <span className="font-bold">{fps} FPS</span>
                         </Badge>
                         
-                        {/* Show Prediction List only if prop is true */}
                         {showPredictionList && (
                             <div className="flex flex-col gap-1">
                             {topPredictions.slice(0, 3).map((pred, i) => (
@@ -427,18 +419,17 @@ const CameraView = ({ practiceMode = 'alphabet', showPredictionList = false }: C
         )}
       </div>
 
-      {/* 🎛️ CONTROLS BAR - UPDATED FOR MOBILE ROW LAYOUT */}
-      {/* Ginawa kong 'flex-row' para magkatabi ang Switch Cam at Start Button sa phone */}
+      {/* 🎛️ CONTROLS BAR - MOBILE READY */}
       <div className="flex flex-row md:flex-row gap-2 justify-between items-center bg-card p-2 md:p-3 rounded-xl border border-border shadow-sm shrink-0">
         
-        {/* MOBILE: Switch Camera (Left Side) */}
+        {/* MOBILE: Switch Camera */}
         <div className="md:hidden">
              <Button variant="outline" size="icon" onClick={handleSwitchCamera} className="h-10 w-10 border-input bg-background">
                 <RefreshCcw className="w-5 h-5 text-muted-foreground" />
              </Button>
         </div>
 
-        {/* DESKTOP: Left Side (Hidden on Mobile) */}
+        {/* DESKTOP: Left Side */}
         <div className="hidden md:flex flex-row items-center gap-2">
             <Select value={selectedCamera} onValueChange={handleCameraChange}>
                 <SelectTrigger className="w-[200px] h-10 text-sm">
@@ -448,20 +439,17 @@ const CameraView = ({ practiceMode = 'alphabet', showPredictionList = false }: C
                     </div>
                 </SelectTrigger>
                 <SelectContent>
-                {cameras.length === 0 && <SelectItem value="placeholder" disabled>No cameras found</SelectItem>}
-                
-                {cameras.map((cam, index) => {
-                    // SAFETY FIX: Kung walang ID, gawan ng fake ID para di mag-crash
-                    const safeId = cam.deviceId || `camera-${index}`;
-                    const safeLabel = cam.label || `Camera ${index + 1}`;
-
-                    return (
-                        <SelectItem key={safeId} value={safeId}>
-                            {safeLabel}
-                        </SelectItem>
-                    );
-                })}
-            </SelectContent>
+                    {cameras.length === 0 && <SelectItem value="placeholder" disabled>No cameras found</SelectItem>}
+                    {cameras.map((cam, index) => {
+                        const safeId = cam.deviceId || `camera-${index}`;
+                        const safeLabel = cam.label || `Camera ${index + 1}`;
+                        return (
+                            <SelectItem key={safeId} value={safeId}>
+                                {safeLabel}
+                            </SelectItem>
+                        );
+                    })}
+                </SelectContent>
             </Select>
 
             <TooltipProvider>
@@ -479,7 +467,6 @@ const CameraView = ({ practiceMode = 'alphabet', showPredictionList = false }: C
 
         {/* RIGHT SIDE: Buttons */}
         <div className="flex gap-2 w-full md:w-auto justify-end flex-1 md:flex-none">
-            {/* Camera On/Off Toggle */}
             <TooltipProvider>
                 <Tooltip>
                     <TooltipTrigger asChild>
@@ -496,7 +483,6 @@ const CameraView = ({ practiceMode = 'alphabet', showPredictionList = false }: C
                 </Tooltip>
             </TooltipProvider>
 
-            {/* Start Recognition - Made Compact for Mobile */}
             <Button 
                 onClick={handleStartRecognitionClick} 
                 size="lg" 
@@ -507,7 +493,6 @@ const CameraView = ({ practiceMode = 'alphabet', showPredictionList = false }: C
                 )}
             >
                 {isRecognizing ? <Loader2 className="w-4 h-4 animate-spin" /> : <ScanFace className="w-4 h-4" />}
-                {/* 👇 Text changes based on screen size */}
                 <span className="md:hidden text-xs">Start AI</span>
                 <span className="hidden md:inline">{isRecognizing ? "Stop Recognition" : "Start Recognition"}</span>
             </Button>
