@@ -8,6 +8,8 @@ import { RefreshCw, CheckCircle2, XCircle, Timer, RotateCcw, Dumbbell } from 'lu
 import { useApp } from '@/contexts/AppContext';
 import { ALPHABET, NUMBERS, COMMON_PHRASES } from '@/lib/trainingData';
 import { PracticeModeType } from '@/pages/Practice'; 
+// 👇 IMPORT TRANSLATION HELPER
+import { translateToFSL } from '@/lib/fslTranslations';
 
 interface PracticeModeProps {
   mode: PracticeModeType;
@@ -15,7 +17,9 @@ interface PracticeModeProps {
 }
 
 const PracticeMode = ({ mode, setMode }: PracticeModeProps) => {
-  const { outputText, clearOutput } = useApp();
+  // 👇 GET SETTINGS TO CHECK LANGUAGE
+  const { outputText, clearOutput, settings } = useApp();
+  
   const [targetSign, setTargetSign] = useState<string>('');
   const [attempts, setAttempts] = useState(0);
   const [correct, setCorrect] = useState(0);
@@ -26,6 +30,10 @@ const PracticeMode = ({ mode, setMode }: PracticeModeProps) => {
   const [isWarmingUp, setIsWarmingUp] = useState(true);
 
   const feedbackTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // 👇 LOGIC FIX: Determine the Final Target based on Language
+  // If FSL, translate "Mother" -> "Nanay". If ASL, keep "Mother".
+  const finalTarget = settings.language === 'FSL' ? translateToFSL(targetSign) : targetSign;
 
   // Reset kapag nagpalit ng mode
   useEffect(() => {
@@ -55,7 +63,9 @@ const PracticeMode = ({ mode, setMode }: PracticeModeProps) => {
     if (isWarmingUp || !outputText || isProcessing || feedback) return;
     
     const currentOutput = outputText.trim().toLowerCase(); 
-    const target = targetSign.toLowerCase();
+    
+    // 👇 COMPARE AGAINST THE TRANSLATED TARGET
+    const target = finalTarget.toLowerCase();
     
     // Check Match
     if (currentOutput.includes(target) || currentOutput === target) {
@@ -75,7 +85,7 @@ const PracticeMode = ({ mode, setMode }: PracticeModeProps) => {
       }, 3000); 
       return () => clearTimeout(checkTimer);
     }
-  }, [outputText, targetSign, isProcessing, feedback, isWarmingUp]); 
+  }, [outputText, finalTarget, isProcessing, feedback, isWarmingUp]); // Added finalTarget dependency
 
   const handleCorrect = () => {
       setIsProcessing(true);
@@ -180,11 +190,11 @@ const PracticeMode = ({ mode, setMode }: PracticeModeProps) => {
         {/* 📱 ADJUSTED: Reduced padding bottom (pb-2) */}
         <CardContent className="flex flex-col items-center gap-2 md:gap-4 pb-2 md:pb-6 flex-1 justify-center min-h-0">
           
-          {/* Target Sign Display - SMALLER TEXT ON MOBILE (text-5xl) */}
+          {/* Target Sign Display - SHOWS TRANSLATED SIGN (finalTarget) */}
           <div className={`font-black text-primary transition-all duration-300 text-center drop-shadow-sm leading-none ${
               mode === 'phrases' ? 'text-2xl md:text-6xl px-2' : 'text-6xl md:text-9xl'
             } ${isProcessing || isWarmingUp ? 'scale-90 opacity-50' : 'scale-100 opacity-100'}`}>
-            {targetSign}
+            {finalTarget}
           </div>
           
           <div className="h-6 md:h-8 flex items-center justify-center w-full shrink-0"> 
