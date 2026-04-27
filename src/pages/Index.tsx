@@ -3,47 +3,85 @@ import TopBar from '@/components/TopBar';
 import CameraView from '@/components/CameraView';
 import OutputPanel from '@/components/OutputPanel';
 import SettingsModal from '@/components/SettingsModal';
-import { useApp } from '@/contexts/AppContext'; // 1. Import Context
+import { useApp } from '@/contexts/AppContext';
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { AlertTriangle } from 'lucide-react';
 
 const Index = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   
-  // 2. Kunin ang setters mula sa Context
+  // 👇 GINAWANG "TRUE" PARA AUTOMATIC LALABAS TUWING BABALIK SA PAGE
+  const [showDisclaimer, setShowDisclaimer] = useState(true);
+  
   const { setIsRecognizing, setOutputText } = useApp();
 
-  // 3. CLEANUP MAGIC: Ito ang pipigil sa connection issue sa Practice page!
   useEffect(() => {
-    // Reset pag nag-load ang page (Mount)
     setIsRecognizing(false);
     setOutputText('');
 
-    // Reset kapag UMALIS ka sa page na 'to (Unmount)
     return () => {
-      setIsRecognizing(false); // Patayin ang camera logic
-      setOutputText('');       // Linisin ang output
+      setIsRecognizing(false); 
+      setOutputText('');       
     };
-  }, []); // Run once on mount
+  }, []); 
+
+  // 👇 TINANGGAL NA ANG LOCALSTORAGE PARA HINDI NIYA TANDAAN, KAYA UULIT SIYA
+  const handleAcceptDisclaimer = () => {
+    setShowDisclaimer(false);
+  };
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-background">
       <TopBar onSettingsClick={() => setSettingsOpen(true)} />
       
-      {/* 📱 Mobile: Vertical Stack | 💻 Desktop: Side-by-Side (2/3 Camera, 1/3 Output) */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-        
-        {/* 🛠️ CAMERA SECTION: Set to 60vh on mobile to prevent the "short camera" look */}
         <div className="h-[60vh] lg:h-full lg:w-2/3 overflow-hidden border-b lg:border-b-0 lg:border-r border-border/40">
-          {/* 4. FORCE MODE: Phrases lang dapat ang gumana dito */}
           <CameraView practiceMode="phrases" />
         </div>
         
-        {/* 🛠️ OUTPUT SECTION: Takes up the remaining space (flex-1) below the camera on mobile */}
         <div className="flex-1 lg:h-full lg:w-1/3 overflow-auto bg-muted/10">
           <OutputPanel />
         </div>
       </div>
 
       <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
+
+      {/* PROFANITY / GUIDELINES MODAL */}
+      <AlertDialog open={showDisclaimer} onOpenChange={setShowDisclaimer}>
+        <AlertDialogContent className="w-[90vw] max-w-[400px] rounded-xl border-red-500/20 p-4 md:p-6 z-[100]">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-red-500 text-lg md:text-xl">
+              <AlertTriangle className="w-5 h-5" />
+              Community Guidelines
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-left space-y-3 mt-2 text-foreground/80">
+              <p className="text-xs md:text-sm">
+                Welcome to <strong>SignifEye</strong>! Please note that our system is currently trained to recognize a limited set of vocabulary (Alphabets, Numbers, and Common Phrases).
+              </p>
+              <div className="bg-red-500/10 p-3 rounded-lg border border-red-500/20">
+                <p className="text-xs md:text-sm font-medium text-foreground">
+                  <strong className="text-red-500">Friendly Reminder:</strong> Performing unsupported or inappropriate gestures (e.g., profanity) will result in inaccurate translations. We highly encourage respectful use of the application.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-2 md:mt-4">
+            <AlertDialogAction onClick={handleAcceptDisclaimer} className="w-full font-bold h-10 text-xs md:text-sm">
+              I Understand
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
     </div>
   );
 };
