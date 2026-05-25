@@ -7,7 +7,8 @@ import { translateToFSL } from '@/lib/fslTranslations';
 import { 
   HelloGesture, ILYGesture, WaitGesture, YesGesture, NoGesture, 
   GoodGesture, WaterGesture, PeaceGesture, OpenHandGesture, 
-  CallGesture, DrinkGesture, PointGesture, FlatHandGesture, FistGesture 
+  CallGesture, DrinkGesture, PointGesture, FlatHandGesture, FistGesture,
+  MiddleFingerGesture // 👈 1. IN-IMPORT NATIN DITO YUNG BAGONG GESTURE
 } from '@/lib/customGestures'; 
 
 import { AllNumberGestures } from '@/lib/numberGestures';
@@ -45,7 +46,8 @@ export const useSignRecognition = (language: 'ASL' | 'FSL', mode: 'phrases' | 'a
         gestureEstimatorRef.current = new fp.GestureEstimator([
             HelloGesture, ILYGesture, WaitGesture, NoGesture, YesGesture,
             GoodGesture, WaterGesture, PeaceGesture, OpenHandGesture,
-            CallGesture, DrinkGesture, PointGesture, FlatHandGesture, FistGesture
+            CallGesture, DrinkGesture, PointGesture, FlatHandGesture, FistGesture,
+            MiddleFingerGesture // 👈 2. ISINAMA NATIN SA LISTAHAN NG IDEDETECT
         ]);
         setIsLoading(false);
     }
@@ -134,6 +136,17 @@ export const useSignRecognition = (language: 'ASL' | 'FSL', mode: 'phrases' | 'a
 
             if (bestGesture.score > minScore) { 
                 let finalSign = bestGesture.name;
+                
+                // 👇 3. CATCHER PARA SA BAD FINGER 👇
+                // Kapag nakita niya yung middle finger, ito agad ang ilalabas niya at hindi na papasok sa ibaba.
+                if (finalSign === 'MiddleFinger') {
+                    return { 
+                        sign: '⚠️ Inappropriate Gesture', 
+                        confidence: 1.0, 
+                        timestamp: Date.now(), 
+                        type: 'static' 
+                    };
+                }
                 
                 // WRIST POSITION: 0 (Top/Head) -> 1 (Bottom/Chest)
                 const wristY = hand[0].y; 

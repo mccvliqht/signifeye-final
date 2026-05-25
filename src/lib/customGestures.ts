@@ -185,4 +185,14 @@ for(let finger of [fp.Finger.Index, fp.Finger.Middle, fp.Finger.Ring, fp.Finger.
     FistGesture.addCurl(finger, fp.FingerCurl.FullCurl, 1.0);
 
 }
-  
+
+export const MiddleFingerGesture = new fp.GestureDescription('MiddleFinger');
+
+// Ang middle finger ay nakatayo (No Curl)
+MiddleFingerGesture.addCurl(fp.Finger.Middle, fp.FingerCurl.NoCurl, 1.0);
+
+// Ang ibang daliri (Thumb, Index, Ring, Pinky) ay nakatupi (Full Curl o Half Curl)
+for (let finger of [fp.Finger.Thumb, fp.Finger.Index, fp.Finger.Ring, fp.Finger.Pinky]) {
+  MiddleFingerGesture.addCurl(finger, fp.FingerCurl.FullCurl, 1.0);
+  MiddleFingerGesture.addCurl(finger, fp.FingerCurl.HalfCurl, 0.9);
+}
